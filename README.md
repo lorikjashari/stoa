@@ -1,139 +1,152 @@
-# Aimo Agent Gateway
+# ProcureBench
 
-> Safe, explainable B2B food purchasing for autonomous agents.
+> Can an AI agent keep a school kitchen supplied when the world refuses to stay simple?
 
-Our Junction 2026 project for **Valio Aimo — Trusted Trade Agents**. We are prototyping the trusted interface through which an external purchasing agent can discover products, check price and availability, propose an order, and request human approval when needed.
+Our Junction 2026 project for **AfterQuery — Break the Agent**. ProcureBench is a reproducible reinforcement-learning environment where an agent plans food procurement for a school kitchen under budget, inventory, delivery, nutrition, allergen, and supply-disruption constraints.
 
-## The problem
+## Why this environment matters
 
-Professional kitchens order thousands of products under time, budget, dietary, and delivery constraints. Future buyer agents can save time, but Valio Aimo must not expose confidential systems or let an agent make uncontrolled commitments.
+Real-world agents must make sequential decisions under uncertainty. A cheap-looking action can cause a missed delivery tomorrow; a substitute can violate an allergy restriction; a high reward can be obtained by exploiting a weak metric instead of doing the job.
 
-Today's webshop is built for people clicking a catalogue. We need a safe operating model for **agents acting on behalf of people**.
+ProcureBench makes those failures measurable. The agent gets the information and tools needed to succeed—but has to reason across time, competing objectives, and hidden failure modes.
 
-## Our solution
+## The task
 
-**Aimo Agent Gateway** is a mock structured API plus a human-friendly control centre.
+The agent manages a five-day kitchen plan. It must ensure every planned meal can be served safely and on time while keeping cost and waste low.
 
-```text
-Kitchen need: “I need 1,000 litres of lactose-free milk by Monday.”
+~~~
+Read menu, dietary requirements, stock, supplier offers, and delivery windows
         ↓
-Agent searches the catalogue and checks price + availability
+Search products / inspect substitutions / place or amend orders
         ↓
-Gateway applies authority, budget, allergen, delivery, and substitution rules
+Handle stock-outs, late deliveries, price changes, and demand changes
         ↓
-Agent either creates an order or sends the best option to a human for approval
+Serve each day safely, on budget, and with minimal waste
+~~~
+
+## What an agent can do
+
+- Inspect inventory, menus, budgets, supplier offers, and delivery schedules.
+- Search products and their nutrition/allergen attributes.
+- Place, amend, cancel, or reserve orders.
+- Choose approved substitutions.
+- Ask for an approval when policy requires it.
+- Advance simulated time and observe consequences.
+
+## What makes it hard
+
+- **Delayed consequences:** an order may look good now but arrive too late.
+- **Partial observability:** suppliers can change stock, prices, and reliability.
+- **Hard safety constraints:** allergens and nutrition cannot be traded for cost.
+- **Coupled decisions:** one ingredient serves multiple future meals.
+- **Trade-offs:** cost, waste, delivery risk, and quality compete.
+- **Adversarial shortcuts:** agents may try to avoid purchases, exploit accounting, or claim meals were served without sufficient ingredients.
+
+## Reward design
+
+The reward represents real outcome, not superficial activity:
+
+~~~
++ meals safely served and nutritionally compliant
+- missed or unsafe meals                    (large penalty)
+- allergen violations                       (terminal / very large penalty)
+- budget overruns
+- expired or wasted inventory
+- late deliveries and unnecessary approvals
+~~~
+
+The environment independently validates meal service from the actual inventory and recipe requirements. An agent cannot gain reward by merely reporting success or placing meaningless orders.
+
+## How we evaluate agents
+
+We will run:
+
+1. a frontier agent using the provided AfterQuery harness;
+2. a transparent reference planner (constraint-aware heuristic / solver);
+3. multiple fixed random seeds and disruption scenarios;
+4. targeted reward-hacking attempts.
+
+We will report meal-service rate, safety violations, cost, waste, reward, and reproducibility. The point is not simply who has the highest score—it is identifying **why** an agent fails.
+
+## Reference cases
+
+| Scenario | Tests |
+| --- | --- |
+| Normal week | Basic planning and inventory management |
+| Milk stock-out | Substitution and delivery reasoning |
+| Allergen conflict | Hard safety constraints |
+| Last-minute event | Demand spike and deadline management |
+| Price shock | Cost-versus-risk trade-off |
+| Reward-hacking probe | Whether reported success matches physical inventory truth |
+
+## Architecture
+
+~~~
+Scenario generator + deterministic simulator
         ↓
-Every decision is recorded with a clear, auditable explanation
-```
-
-## Core capabilities
-
-1. **Product, price, and availability lookup** — structured search results for an external purchasing agent.
-2. **Order proposal and placement** — move safely from enquiry to a fixed-price commitment.
-3. **Permission and approval rules** — decide what an agent can do alone and when a human must approve.
-4. **Explainable audit trail** — show what the agent chose, why, which rules applied, and who approved it.
-5. **Safe substitutions** — rank alternatives while respecting allergies, nutrition needs, preferences, and budget.
-
-## Our winning demo scenario
-
-A school kitchen needs lactose-free milk for Monday. The preferred product is short on stock.
-
-The agent:
-
-1. finds eligible lactose-free alternatives;
-2. compares price, availability, delivery date, and allergen data;
-3. proposes the best substitute;
-4. sees that the substitution crosses a policy threshold;
-5. requests a manager's approval instead of ordering automatically;
-6. shows a readable record of the decision after approval.
-
-This demonstrates the real problem: useful autonomy **without losing control**.
-
-## Why this is different
-
-- **Not a chatbot webshop:** we define an agent-to-business interaction model.
-- **Trust is enforceable:** every action passes structured policy checks.
-- **Human approval is built in:** agents can be helpful without unlimited authority.
-- **Decisions are explainable:** buyer and supplier can see the reason for each order or exception.
-- **Food-service aware:** substitutions consider availability, delivery, allergens, nutrition, and commercial rules.
-
-## Proposed architecture
-
-```text
-Buyer agent / demo UI
+Structured observation and action API
         ↓
-Agent Gateway API
-  ├─ catalogue search: products, price, availability
-  ├─ policy engine: authority, budget, allergen, substitution rules
-  ├─ order workflow: draft → approval required / approved → placed
-  └─ audit ledger: decision, evidence, policy result, approver
+AfterQuery agent harness / frontier agent
+        ↔ tools: search, inspect, order, amend, approve, advance time
         ↓
-Mock Valio Aimo catalogue and order backend
+Independent validator + reward engine
         ↓
-Human approval dashboard + order/audit timeline
-```
+Metrics, traces, replay, and comparison dashboard
+~~~
 
 ## Planned stack
 
 | Area | Choice | Why |
 | --- | --- | --- |
-| UI | Next.js / React | Agent and manager views in one clear demo |
-| Backend | Python + FastAPI | Structured API, policy engine, and testable workflows |
-| Data | MariaDB | Product catalogue, orders, approval rules, audit records |
-| AI reasoning | Gemini or Claude | Turn needs into structured requirements and explain trade-offs |
-| Deployment | Modal, Verda, or Aiven | Reliable public demo and agent workloads |
-| Live enrichment | Context.dev or Exa *(optional)* | Verify product/certification information when appropriate |
-| CI/provenance | CRACI | Secure, reproducible builds |
+| Environment | Python | Deterministic simulation and testing |
+| API/harness | FastAPI + structured JSON tools | Clear agent observation/action contract |
+| Data | MariaDB | Runs, episode traces, outcomes, and comparisons |
+| Compute | Modal or Verda | Parallel evaluations and optional post-training |
+| Models | AfterQuery-provided models; Gemini/Claude optional | Frontier evaluation and analysis |
+| UI | Next.js / React | Live episode replay and score comparison |
+| Storage | IronShard | Datasets, traces, checkpoints, and artifacts |
+| CI | CRACI | Reproducible tests and build provenance |
 
 ## First milestones
 
-- [ ] Get mock catalogue/API materials and ask Valio Aimo mentors about constraints.
-- [ ] Choose one complete scenario: lactose-free milk substitution for a school kitchen.
-- [ ] Create catalogue, availability, allergen, price, and delivery mock data.
-- [ ] Implement product search and structured purchase request.
-- [ ] Implement policy rules: budget, approval threshold, allergen safety, substitutions.
-- [ ] Build draft order → approval → placed workflow.
-- [ ] Build an audit timeline a non-technical manager can understand.
-- [ ] Test happy path, partial availability, unsafe substitute, and rejected order.
+- [ ] Define state, action, observation, termination, and reward contracts.
+- [ ] Build a deterministic one-day inventory/order simulator.
+- [ ] Add recipes, allergens, quantities, supplier offers, and delivery windows.
+- [ ] Add one disruption: supplier stock-out.
+- [ ] Add independent meal-service validation.
+- [ ] Build a simple baseline heuristic.
+- [ ] Connect the AfterQuery harness and run a frontier agent.
+- [ ] Add fixed seeds, episode logging, and replay.
+- [ ] Add explicit reward-hacking tests.
+- [ ] Expand to a five-day environment only after the one-day loop works.
 
 ## Team roles
 
 | Role | Focus |
 | --- | --- |
-| Product/demo | Scenario, policies, demo story, pitch |
-| Backend | API contract, catalogue, policy engine, order workflow |
-| AI/agent | Requirement extraction, tool calling, explanations |
-| Frontend | Search/proposal view, approval dashboard, audit timeline |
-| Platform | Database, deploy, tests, CI |
+| Environment/reward | Simulator, state transitions, validator, anti-hacking tests |
+| Agent/research | Harness integration, baseline, experiment design, analysis |
+| Backend/data | APIs, traces, run storage, reproducibility |
+| Frontend/demo | Replay dashboard, metrics, presentation |
 
-## Demo success criteria
+## Definition of a winning demo
 
-In under two minutes, a judge should see:
+In under three minutes, show a frontier agent make a credible but costly mistake, replay exactly why it failed, then compare it with a reproducible reference planner. End with a reward-hacking attempt that the environment catches.
 
-1. an agent retrieve structured price and availability data;
-2. a policy-safe decision about an order or substitute;
-3. a human approval request when the agent crosses its authority;
-4. a completed order or a safe refusal;
-5. a clear audit record explaining what happened and why.
+## Non-negotiable principles
 
-## Non-negotiable rules
-
-- Never let the agent order outside its granted authority.
-- Never suggest an allergen-unsafe substitute.
-- Never hide uncertainty, stock limitations, or delivery trade-offs.
-- Every commitment must have an audit event and a human-readable reason.
-- Use synthetic/mock data only unless Valio Aimo provides cleared data.
+- A high reward must mean the kitchen really served safe meals.
+- Every episode must be replayable from a seed.
+- The agent must have enough information and tools to succeed.
+- Failures should reveal meaningful reasoning/planning limits, not missing API access.
+- Keep the first version small, deterministic, and hard to game.
 
 ## Prize entries
 
-Main entry: **Trusted Trade Agents — Valio Aimo**.
+Main entry: **Break the Agent — AfterQuery**.
 
-We can also enter Best Use of Gemini, Modal or Verda, Codex, Aiven, CRACI, Context.dev, and Exa only when each tool has a visible, meaningful role in the working flow.
+Potential side entries when visibly used: Best Use of Modal or Verda, Codex, MariaDB/Aiven, CRACI, and IronShard.
 
 ## Local setup
 
-This repository is currently a project kickoff. Setup instructions will be added once the frontend and API are scaffolded.
-
-## Useful links
-
-- [Junction 2026](https://hackjunction.com/)
+This is currently a project kickoff. Environment setup instructions will be added with the first runnable simulator.
