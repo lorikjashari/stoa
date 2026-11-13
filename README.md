@@ -1,119 +1,138 @@
-# Blueprint Evidence Copilot
+# Aimo Agent Gateway
 
-> Ask a question about a construction drawing. Get an answer you can verify in seconds.
+> Safe, explainable B2B food purchasing for autonomous agents.
 
-Our Junction 2026 project for **Stoa — Make Blueprints Talk**. We are building an AI assistant that understands technical construction drawings and gives evidence-grounded answers: not only *what* it found, but the exact sheet and area where it found it.
+Our Junction 2026 project for **Valio Aimo — Trusted Trade Agents**. We are prototyping the trusted interface through which an external purchasing agent can discover products, check price and availability, propose an order, and request human approval when needed.
 
 ## The problem
 
-Construction engineers lose time searching through large, dense drawing sets. General AI can give plausible answers, but in construction a plausible answer is not enough: people need to see the source and verify it quickly.
+Professional kitchens order thousands of products under time, budget, dietary, and delivery constraints. Future buyer agents can save time, but Valio Aimo must not expose confidential systems or let an agent make uncontrolled commitments.
+
+Today's webshop is built for people clicking a catalogue. We need a safe operating model for **agents acting on behalf of people**.
 
 ## Our solution
 
-Blueprint Evidence Copilot turns a natural-language question into a short, trustworthy answer with visual proof.
+**Aimo Agent Gateway** is a mock structured API plus a human-friendly control centre.
 
 ```text
-Question: “Where is the fire exit on Level 2?”
-
-Answer: “East stairwell, Corridor B.”
-Evidence: the relevant sheet opens, zooms to the exit, and highlights the
-symbol/label used for the answer.
+Kitchen need: “I need 1,000 litres of lactose-free milk by Monday.”
+        ↓
+Agent searches the catalogue and checks price + availability
+        ↓
+Gateway applies authority, budget, allergen, delivery, and substitution rules
+        ↓
+Agent either creates an order or sends the best option to a human for approval
+        ↓
+Every decision is recorded with a clear, auditable explanation
 ```
 
-## What makes this different
+## Core capabilities
 
-- **Evidence first:** every answer must cite a sheet and highlighted drawing region.
-- **No confident guessing:** ambiguous or missing information returns an honest limitation.
-- **Built for drawings:** combines OCR, document retrieval, coordinates, geometry, and multimodal AI instead of treating a whole blueprint as one image.
-- **Focused scope:** we will solve a small set of high-value questions extremely well.
+1. **Product, price, and availability lookup** — structured search results for an external purchasing agent.
+2. **Order proposal and placement** — move safely from enquiry to a fixed-price commitment.
+3. **Permission and approval rules** — decide what an agent can do alone and when a human must approve.
+4. **Explainable audit trail** — show what the agent chose, why, which rules applied, and who approved it.
+5. **Safe substitutions** — rank alternatives while respecting allergies, nutrition needs, preferences, and budget.
 
-## Initial supported questions
+## Our winning demo scenario
 
-We will refine these after seeing Stoa's dataset and example questions.
+A school kitchen needs lactose-free milk for Monday. The preferred product is short on stock.
 
-1. **Location:** Where is the fire exit, lift, electrical room, or stairwell?
-2. **Dimensions:** What is the width/length of a marked corridor or room?
-3. **Relationships:** Which rooms connect to a named stairwell or corridor?
-4. **Counts:** How many doors, exits, or labelled rooms are on a floor?
+The agent:
+
+1. finds eligible lactose-free alternatives;
+2. compares price, availability, delivery date, and allergen data;
+3. proposes the best substitute;
+4. sees that the substitution crosses a policy threshold;
+5. requests a manager's approval instead of ordering automatically;
+6. shows a readable record of the decision after approval.
+
+This demonstrates the real problem: useful autonomy **without losing control**.
+
+## Why this is different
+
+- **Not a chatbot webshop:** we define an agent-to-business interaction model.
+- **Trust is enforceable:** every action passes structured policy checks.
+- **Human approval is built in:** agents can be helpful without unlimited authority.
+- **Decisions are explainable:** buyer and supplier can see the reason for each order or exception.
+- **Food-service aware:** substitutions consider availability, delivery, allergens, nutrition, and commercial rules.
 
 ## Proposed architecture
 
 ```text
-Technical drawings (PDF / images / BIM)
+Buyer agent / demo UI
         ↓
-High-resolution sheet rendering + metadata extraction
+Agent Gateway API
+  ├─ catalogue search: products, price, availability
+  ├─ policy engine: authority, budget, allergen, substitution rules
+  ├─ order workflow: draft → approval required / approved → placed
+  └─ audit ledger: decision, evidence, policy result, approver
         ↓
-OCR, symbol/label detection, coordinates, sheet indexing
+Mock Valio Aimo catalogue and order backend
         ↓
-MariaDB: text + regions + coordinates + source metadata
-        ↓
-Retrieve only relevant evidence for a question
-        ↓
-Gemini / vision model reasons over the retrieved evidence
-        ↓
-Answer + confidence + highlighted source region in the UI
+Human approval dashboard + order/audit timeline
 ```
 
 ## Planned stack
 
 | Area | Choice | Why |
 | --- | --- | --- |
-| UI | Next.js / React | Fast, clear drawing viewer and question interface |
-| API & processing | Python + FastAPI | Strong PDF, OCR, CV, and data tooling |
-| Multimodal reasoning | Gemini | Interpret retrieved visual/textual drawing evidence |
-| Compute | Modal or Verda | Run OCR, embeddings, and vision workloads reliably |
-| Database | MariaDB | Store drawing text, regions, coordinates, and query evidence |
-| Image delivery | Cloudinary | Efficient sheet previews, crops, zooming, and annotations |
-| CI | CRACI | Reproducible builds and supply-chain visibility |
+| UI | Next.js / React | Agent and manager views in one clear demo |
+| Backend | Python + FastAPI | Structured API, policy engine, and testable workflows |
+| Data | MariaDB | Product catalogue, orders, approval rules, audit records |
+| AI reasoning | Gemini or Claude | Turn needs into structured requirements and explain trade-offs |
+| Deployment | Modal, Verda, or Aiven | Reliable public demo and agent workloads |
+| Live enrichment | Context.dev or Exa *(optional)* | Verify product/certification information when appropriate |
+| CI/provenance | CRACI | Secure, reproducible builds |
 
 ## First milestones
 
-- [ ] Obtain dataset, formats, sample questions, and evaluation expectations from Stoa.
-- [ ] Select one drawing format and 3 high-value question types.
-- [ ] Render a drawing sheet and build a pan/zoom viewer.
-- [ ] Extract OCR text with bounding-box coordinates.
-- [ ] Build the first full flow: question → evidence retrieval → highlight → answer.
-- [ ] Create a test set of 10–20 questions and measure accuracy.
-- [ ] Add uncertainty handling and source links for every answer.
-- [ ] Prepare a two-minute live demo.
+- [ ] Get mock catalogue/API materials and ask Valio Aimo mentors about constraints.
+- [ ] Choose one complete scenario: lactose-free milk substitution for a school kitchen.
+- [ ] Create catalogue, availability, allergen, price, and delivery mock data.
+- [ ] Implement product search and structured purchase request.
+- [ ] Implement policy rules: budget, approval threshold, allergen safety, substitutions.
+- [ ] Build draft order → approval → placed workflow.
+- [ ] Build an audit timeline a non-technical manager can understand.
+- [ ] Test happy path, partial availability, unsafe substitute, and rejected order.
 
-## Team working agreement
-
-- Keep the main branch deployable.
-- Make small, focused pull requests with a clear before/after note.
-- Do not add features that cannot be demonstrated with evidence.
-- Record every tested question, expected answer, actual answer, source sheet, and result.
-- If the system is uncertain, surface that uncertainty. Trust is the product.
-
-## Suggested roles
+## Team roles
 
 | Role | Focus |
 | --- | --- |
-| Product/demo | User flow, question selection, pitch, demo script |
-| Document AI | PDF rendering, OCR, drawing metadata, coordinate extraction |
-| AI/retrieval | Retrieval pipeline, Gemini prompts, answer/evidence validation |
-| Frontend | Viewer, highlighted regions, question/answer UI |
-| Platform | Database, deploy, CI, dataset/model storage |
+| Product/demo | Scenario, policies, demo story, pitch |
+| Backend | API contract, catalogue, policy engine, order workflow |
+| AI/agent | Requirement extraction, tool calling, explanations |
+| Frontend | Search/proposal view, approval dashboard, audit timeline |
+| Platform | Database, deploy, tests, CI |
 
-One person can cover more than one role; this is a focus map, not a rigid team structure.
+## Demo success criteria
 
-## Success criteria
+In under two minutes, a judge should see:
 
-The demo succeeds when a judge can ask a real question and, in under 10 seconds:
+1. an agent retrieve structured price and availability data;
+2. a policy-safe decision about an order or substitute;
+3. a human approval request when the agent crosses its authority;
+4. a completed order or a safe refusal;
+5. a clear audit record explaining what happened and why.
 
-1. receive a useful answer;
-2. see the exact supporting region of the original drawing;
-3. understand why the system is confident—or why it refuses to answer.
+## Non-negotiable rules
+
+- Never let the agent order outside its granted authority.
+- Never suggest an allergen-unsafe substitute.
+- Never hide uncertainty, stock limitations, or delivery trade-offs.
+- Every commitment must have an audit event and a human-readable reason.
+- Use synthetic/mock data only unless Valio Aimo provides cleared data.
 
 ## Prize entries
 
-Main entry: **Stoa — Make Blueprints Talk**.
+Main entry: **Trusted Trade Agents — Valio Aimo**.
 
-If the tools are genuinely part of the working solution, we can also enter Best Use of Gemini, Modal or Verda, Cloudinary, Codex, CRACI, and Aiven/MariaDB.
+We can also enter Best Use of Gemini, Modal or Verda, Codex, Aiven, CRACI, Context.dev, and Exa only when each tool has a visible, meaningful role in the working flow.
 
 ## Local setup
 
-The repository is currently a project kickoff. Setup commands will be added once the frontend/backend structure is created.
+This repository is currently a project kickoff. Setup instructions will be added once the frontend and API are scaffolded.
 
 ## Useful links
 
