@@ -27,3 +27,6 @@ blueprint3d/viewer/scenes/
 
 # External code and model weights (downloaded, not ours)
 third_party/
+
+# Eval outputs (stoa_qa.eval predictions/failures)
+eval_out/
