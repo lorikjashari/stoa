@@ -57,3 +57,12 @@ def test_tile_fragments_inside_a_longer_reading_are_dropped():
              {"box": [300, 11, 500, 29], "text": "ONDFLOOR=", "conf": 0.95},
              {"box": [600, 10, 700, 30], "text": "26,562 SF", "conf": 0.9}]
     assert [ln["text"] for ln in sheet_ocr._merge(lines)] == ["TOTALSECONDFLOOR=", "26,562 SF"]
+
+
+def test_the_same_label_printed_twice_counts_twice(monkeypatch):
+    rows = [{"id": "L1", "text": "Bedroom", "bbox": [0, 0, 50, 10], "parts": [{"text": "Bedroom", "bbox": [0, 0, 50, 10]}]},
+            {"id": "L2", "text": "Bedroom", "bbox": [300, 0, 350, 10], "parts": [{"text": "Bedroom", "bbox": [300, 0, 350, 10]}]}]
+    monkeypatch.setattr(llm, "chat_json", lambda *a, **k: ({"kind": "count", "rows": ["L1", "L2"], "items": ["Bedroom", "Bedroom"],
+                                                            "answer": None, "unit": None, "note": ""}, None))
+    a, _ = docqa.ask("uploads/x.png", "How many bedrooms are there?", rows=rows)
+    assert a.value == 2 and [e.coords[0][0] for e in a.evidence] == [-3, 297]

@@ -243,7 +243,8 @@ async function open3D() {
   $("#stepper").classList.add("hidden");
   if (!state.sceneUrl) {
     const from = { ifc: "the IFC model", dxf: "the CAD geometry", mesh: "the 3D mesh", raster: "the scan (approximate)" };
-    setMsg(`Building the 3D model from ${from[state.drawing.model_kind] || "the model"}`, true);
+    setMsg(state.drawing.upload ? "Tracing walls, rooms, doors and windows from your plan (up to half a minute the first time)"
+      : `Building the 3D model from ${from[state.drawing.model_kind] || "the model"}`, true);
     try {
       const r = await api.post("/api/scene", { id: state.drawing.id, question: "" });
       state.sceneUrl = r.url; state.pending3d = state.active?.res?.ids || [];

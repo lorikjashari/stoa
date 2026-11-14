@@ -87,6 +87,53 @@ Tests: `uv run pytest` runs 26 tests on synthetic drawings (no dataset or API ke
 
 Deploy with a public URL (CPU only): `modal run modal_jobs/serve.py::load_data`, then `modal deploy modal_jobs/serve.py`.
 
+### Train on your own plans
+
+The detector learned Finnish CubiCasa5K plans. If your plans look different (other symbols, colours, scans), teach it
+with a few dozen of them: the current model pre-labels them, you correct the boxes, and a short fine-tune starts from the
+trained `best.pt`. Your plans are mixed with a replay sample of CubiCasa train plans so the model keeps what it learned.
+Put your images in `myplans/images/` (or straight into `myplans/`). Any env with `ultralytics` works; a CUDA GPU makes it fast.
+
+```bash
+# 0. the trained model (or skip this and use the Modal variant below)
+modal volume get stoa-cubicasa runs/m13-1280/weights/best.pt third_party/weights/m13-1280.pt
+# 1. pre-label with the current detector and the val-tuned thresholds -> myplans/labels_auto/*.txt (13 classes, YOLO format)
+python modal_jobs/cubicasa_userplans.py label myplans
+# 2. correct: open tools/plan_labeler.html in Chrome or Edge, "Open plans folder", fix every box, Save -> myplans/labels/
+# 3. hold out val + test plans (sticky: a test plan never moves into training when you add plans)
+python modal_jobs/cubicasa_userplans.py split myplans --val 0.2 --test 0.2
+# 4. dataset: each train plan x3 + 2 CubiCasa train plans per user image + 100 CubiCasa val plans
+python modal_jobs/cubicasa_userplans.py prepare myplans --name ft-mine --repeat 3 --replay-ratio 2 --replay-val 100
+# 5. fine-tune from best.pt: AdamW lr 2e-4, backbone frozen, 15 epochs (all flags configurable)
+python modal_jobs/cubicasa_userplans.py train --name ft-mine --epochs 15 --lr0 2e-4 --freeze 10 --batch 2
+# 6. boxes of the old and new model on your plans and on CubiCasa val + test
+python modal_jobs/cubicasa_userplans.py predict myplans --tag m13-1280
+python modal_jobs/cubicasa_userplans.py predict myplans --tag ft-mine --weights eval_out/yolo_runs/ft-mine/weights/best.pt
+# 7. before/after counts accuracy on YOUR held-out test plans and on the CubiCasa test split
+python modal_jobs/cubicasa_userplans.py evaluate myplans --before m13-1280 --after ft-mine
+```
+
+Steps 4-6 locally need the CubiCasa YOLO data in `eval_out/yolo_data/` (from `cubicasa_local.py extract` + `labels`) for the
+replay sample and the CubiCasa val/test check; without it `prepare` warns and trains without replay. The Modal variant
+reads that data from the Volume. No local GPU, weights or CubiCasa data: steps 1, 5 and 6 run on Modal instead (your
+images are uploaded to Modal for this):
+
+```bash
+modal run modal_jobs/cubicasa_userplans_cloud.py::label --plans myplans
+modal run --detach modal_jobs/cubicasa_userplans_cloud.py::finetune --plans myplans --name ft-mine   # after steps 2-3
+python modal_jobs/cubicasa_userplans.py evaluate myplans --before m13-1280 --after ft-mine
+```
+
+How it stays honest: pseudo-labels are never used as truth, only the boxes you saved in `labels/`. Training uses your
+train plans plus CubiCasa train; thresholds are re-tuned per question on val only (your val plans and CubiCasa val, equal
+weight by default) and written to `eval_out/userplans/<run>/picks.json` in the same format as `stoa_qa/cubicasa_picks.json`;
+numbers are reported only on your test plans and the CubiCasa test split. `evaluate` prints three rows: the old model with
+the published thresholds, the old model with thresholds re-tuned on val (so you can see how much a fine-tune adds beyond
+recalibration), and the fine-tuned model. Watch the CubiCasa column: it should stay near 84.2% (that number is for the
+fused `ens-m13-s13`; a single fine-tuned model compares with `m13-1280` alone, 83.5%). With fewer than ~10 test plans
+the difference is noise. Correcting starts from the old model's boxes, so mistakes you overlook favour the old model.
+`python modal_jobs/cubicasa_userplans.py demo` runs the whole loop on synthetic plans (a dry run; its numbers mean nothing).
+
 ## The problem
 
 Site engineers spend hours every day looking for information in dense drawing sets. General-purpose AI often gets technical drawings wrong: it miscounts symbols, misreads scales and invents dimensions. In construction an answer that only *sounds* right is useless. People need to see where it came from.

@@ -90,9 +90,17 @@ def save(data: bytes) -> str:
 
 
 def drawing(rel: str) -> Drawing | None:
+    from . import plan3d
+
     try:
         resolve(rel)
     except FileNotFoundError:
         return None
+    model = rel if plan3d.available() else None  # a 3D view needs the CubiCasa5K network (walls, room shapes)
     return Drawing(id=rel, source=KIND, title=f"Uploaded plan · {Path(rel).stem[:8]}", ask_path=rel, formats=["png"],
-                   files=[rel], sheets=[Sheet("image", rel, "Uploaded plan")])
+                   files=[rel], sheets=[Sheet("image", rel, "Uploaded plan")], model=model,
+                   model_kind="raster" if model else None, model_note=MODEL_NOTE if model else None)
+
+
+MODEL_NOTE = ("Approximate: walls and room shapes traced by the CubiCasa5K network; doors, windows, fixtures and room types "
+              "placed from the detector boxes the answers count. Scale from door width (0.9 m); heights assumed.")

@@ -113,15 +113,17 @@ def _key(t: str) -> str:
 
 
 def _counted_items(items: list, rows: list[dict]) -> list[tuple[str, dict, list]]:
-    """The listed items that really are printed on the sheet, each once: (item, row, box of the printed part)."""
-    out, seen = [], set()
+    """The listed items that really are printed on the sheet: (item, row, box of the printed part). Each printed
+    occurrence counts once: "CV-4" listed twice but printed once counts 1, "Bedroom" printed in two rooms counts 2."""
+    out, used = [], set()
     for it in items or []:
         k = _key(str(it))
-        if not k or k in seen:
+        if not k:
             continue
         for r in rows:
-            part = next((pt for pt in r.get("parts", []) if k in _key(pt["text"])), None)
+            part = next((pt for pt in r.get("parts", []) if k in _key(pt["text"]) and (id(pt), k) not in used), None)
             if part is not None:
+                used.add((id(part), k))
                 # the item's own share of a part that holds several (OCR reads "CV-1 CV-2" as one line): narrow the box
                 t, (x0, y0, x1, y1) = _key(part["text"]), part["bbox"]
                 i = t.find(k)
@@ -129,7 +131,6 @@ def _counted_items(items: list, rows: list[dict]) -> list[tuple[str, dict, list]
                     cw = (x1 - x0) / len(t)
                     x0, x1 = x0 + i * cw, x0 + (i + len(k)) * cw
                 out.append((str(it), r, [x0, y0, x1, y1]))
-                seen.add(k)
                 break
     return out
 
@@ -177,8 +178,8 @@ def ask(rel: str, question: str, page: int = 0, rows: list[dict] | None = None) 
         if found:
             ev = [Evidence("box", f"{r['id']}-{i}", it, None, [[round(b[0] - 3, 1), round(b[1] - 3, 1)], [round(b[2] + 3, 1), round(b[3] + 3, 1)]])
                   for i, (it, r, b) in enumerate(found)]
-            listed = len({_key(str(x)) for x in items if _key(str(x))})
-            miss = f"; {listed - len(found)} listed item(s) not found in the sheet text were not counted" if listed > len(found) else ""
+            missing = len({_key(str(x)) for x in items if _key(str(x))} - {_key(it) for it, _, _ in found})
+            miss = f"; {missing} listed item(s) not found in the sheet text were not counted" if missing else ""
             return Answer(len(found), "count", "doc_count", 0.7,
                           f"Counted {len(found)} printed items on the sheet ({', '.join(it for it, _, _ in found[:8])}"
                           f"{', ...' if len(found) > 8 else ''}){miss}" + (f" · {note}" if note else ""), ev), usage

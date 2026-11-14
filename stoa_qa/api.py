@@ -27,7 +27,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from . import catalog, cubicasa, cubicasa_live, graph, llm, pipeline, sheets, uploads
+from . import catalog, cubicasa, cubicasa_live, graph, llm, pipeline, plan3d, sheets, uploads
 from .core import DATASET
 
 REPO = Path(__file__).resolve().parent.parent
@@ -210,7 +210,7 @@ def _upload_detail(d: catalog.Drawing) -> dict:
             "questions": [{"question": q, "type": "count", "lang": "en"} for q in uploads.SUGGESTED], "question_count": 0,
             "credit": {"title": "Your upload", "credit": note, "licence": "", "url": ""},
             "source_info": {"label": "Uploaded plan", "kind": "raster floor plan", "engine": "detection"},
-            "scene": None, "model": None, "model_note": None, "detector": det}
+            "scene": _scene_name(d) or None, "model": d.model, "model_note": d.model_note, "detector": det}
 
 
 # ------------------------------------------------------------------ sheets
@@ -306,11 +306,20 @@ def _scene_name(d: catalog.Drawing) -> str:
     stem = Path(d.model).stem
     if d.source == "opening_design":  # project models have generic names ("Model.ifc"): prefix the project
         stem = f"{Path(d.model).parts[2]}-{stem}"
+    if _detector_scene(d):  # built by stoa_qa.plan3d: a name of its own, so an older network-only scene never shadows it
+        stem += "-y"
     return re.sub(r"[^A-Za-z0-9_.-]+", "-", stem).strip("-")
+
+
+def _detector_scene(d: catalog.Drawing) -> bool:
+    """CubiCasa-style raster plans get the scene whose doors, windows, fixtures and rooms are the answers' detector boxes."""
+    return d.model_kind == "raster" and d.source == "cubicasa5k" and plan3d.available()
 
 
 def _build_scene(d: catalog.Drawing, name: str) -> dict:
     """Scene JSON for a drawing's model, using the same readers that answer questions."""
+    if _detector_scene(d):
+        return plan3d.for_drawing(d.ask_path, d.model)
     sys.path.insert(0, str(REPO / "blueprint3d"))
     path = str(DATASET / d.model)
     if d.model_kind == "ifc":
