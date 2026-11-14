@@ -163,7 +163,8 @@ def _suggest(qs: list[dict], limit: int = 40) -> list[dict]:
 
 @app.post("/api/upload")
 async def upload(request: Request):
-    """Raw image bytes in the body (PNG or JPEG) -> the drawing record of the stored plan, ready for /api/ask."""
+    """Raw image bytes in the body (PNG, JPEG, WebP, TIFF, BMP) -> the drawing record of the stored plan, ready for
+    /api/ask. A sheet larger than uploads.WORK_SIDE is stored scaled; the reply then has `scaled_from` = [w, h]."""
     if int(request.headers.get("content-length") or 0) > uploads.MAX_BYTES:
         raise HTTPException(413, f"file is larger than {uploads.MAX_BYTES // (1024 * 1024)} MB")
     data = await request.body()
@@ -171,7 +172,27 @@ async def upload(request: Request):
         rel = await run_in_threadpool(uploads.save, data)  # image decode + PNG encode: off the event loop
     except uploads.BadUpload as e:
         raise HTTPException(400, f"cannot use this file: {e}") from None
-    return _upload_detail(uploads.drawing(rel))
+    d = uploads.drawing(rel)
+    try:  # OCR the sheet in the background so the first text question doesn't wait ~25 s
+        from . import sheet_ocr
+
+        image = sheets.safe_path(rel)
+        sheet_ocr.warm(image, cubicasa_live.image_hash(image))
+    except Exception:
+        pass
+    out = _upload_detail(d)
+    try:  # say when a very large sheet was stored scaled (uploads.WORK_SIDE)
+        import io
+
+        from PIL import Image
+
+        Image.MAX_IMAGE_PIXELS = uploads.MAX_PIXELS
+        with Image.open(io.BytesIO(data)) as im:
+            if max(im.size) > uploads.WORK_SIDE:
+                out["scaled_from"] = list(im.size)
+    except Exception:
+        pass
+    return out
 
 
 def _upload_detail(d: catalog.Drawing) -> dict:

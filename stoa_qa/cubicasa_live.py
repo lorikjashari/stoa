@@ -35,6 +35,12 @@ CONF = 0.05  # same as the offline predictions; thresholds are applied later, pe
 IMGSZ = {"m13-1280": 1280, "local-y11s-13c": 1024}
 # fused runs -> the two runs they were made from, in the order given to stoa_qa.cubicasa_ensemble
 ENSEMBLES = {"ens-m13-s13": ("m13-1280", "local-y11s-13c")}
+# Large sheets: symbols shrink below what the detectors learned when the whole sheet is scaled to imgsz, so doors,
+# windows and fixtures are detected on overlapping 960 px tiles (predict_tiled). Measured with the Modal probe
+# (_analysis/tiling_eval.py): 88 held-out Swiss sheets (2480 px) fused mean exact count 28.9% -> 42.7%; CubiCasa val
+# with tiling above 2000 px 78.5% -> 78.4% (one question in 2,000); 640 and 1280 px tiles scored lower.
+TILE = 960
+TILE_MIN_SIDE = 2000
 
 _lock = threading.Lock()
 _models: dict[str, object] = {}
@@ -102,18 +108,88 @@ def _imgsz(run: str, model) -> int:
     return int(size[0] if isinstance(size, (list, tuple)) else size) if size else 1280
 
 
+def tiled(image: str | Path) -> bool:
+    """Is this sheet large enough to be detected in tiles (long side over TILE_MIN_SIDE px)?"""
+    from PIL import Image
+
+    with Image.open(image) as im:
+        return max(im.size) > TILE_MIN_SIDE
+
+
 def predict_run(run: str, image: str | Path) -> list:
-    """Boxes [cls, score, x0, y0, x1, y1] in the image's own pixels, as the offline prediction jobs write them."""
+    """Boxes [cls, score, x0, y0, x1, y1] in the image's own pixels, as the offline prediction jobs write them;
+    on a large sheet doors, windows and fixtures come from tiles (see TILE)."""
     model = _load(run)
     with _lock:  # one prediction at a time: the API serves requests from a thread pool
         r = model.predict(str(image), imgsz=_imgsz(run, model), conf=CONF, verbose=False)[0]
-    b = r.boxes
-    return [[int(c), round(float(s), 4), *[round(float(v), 1) for v in xyxy]]
-            for c, s, xyxy in zip(b.cls.tolist(), b.conf.tolist(), b.xyxy.tolist())]
+        b = r.boxes
+        full = [[int(c), round(float(s), 4), *[round(float(v), 1) for v in xyxy]]
+                for c, s, xyxy in zip(b.cls.tolist(), b.conf.tolist(), b.xyxy.tolist())]
+        if tiled(image):
+            return predict_tiled(model, image, _imgsz(run, model), TILE, full=full)
+    return full
+
+
+OBJECT_CLASSES = range(6)  # door, window, toilet, sink, shower, bathtub (cubicasa_rules.CLASSES); rooms/floor are 6..12
+
+
+def tile_grid(w: int, h: int, tile: int, overlap: float = 0.25) -> list[tuple[int, int, int, int]]:
+    """Overlapping tile windows (x0, y0, x1, y1) covering a w x h image; one window when it already fits."""
+    def starts(n: int) -> list[int]:
+        if n <= tile:
+            return [0]
+        step = max(1, int(tile * (1 - overlap)))
+        s = list(range(0, n - tile, step))
+        if n - tile - s[-1] < tile // 10:  # the last window would nearly repeat the one before: move that one instead
+            s[-1] = n - tile
+            return s
+        return s + [n - tile]
+    return [(x, y, min(w, x + tile), min(h, y + tile)) for y in starts(h) for x in starts(w)]
+
+
+def _nms(boxes: list, iou: float = 0.5) -> list:
+    from .cubicasa_rules import _iou
+
+    kept: list = []
+    for b in sorted(boxes, key=lambda r: -r[1]):
+        if all(k[0] != b[0] or _iou(b[2:6], k[2:6]) <= iou for k in kept):
+            kept.append(b)
+    return kept
+
+
+def predict_tiled(model, image, imgsz: int, tile: int, conf: float = CONF, full: list | None = None) -> list:
+    """Boxes for a large sheet whose symbols are too small at imgsz: doors, windows and fixtures come from overlapping
+    tiles of `tile` source pixels (each scaled to imgsz), rooms and floors from the whole-image pass `full`.
+
+    A box touching a tile edge that is not the image edge is dropped (the neighbouring tile, overlapping by 25%, sees
+    it whole), then duplicates across tiles are merged per class (IoU > 0.5)."""
+    from PIL import Image
+
+    im = Image.open(image).convert("RGB")
+    w, h = im.size
+    if full is None:
+        r = model.predict(im, imgsz=imgsz, conf=conf, verbose=False)[0]
+        full = [[int(c), float(s), *map(float, xyxy)] for c, s, xyxy in zip(r.boxes.cls.tolist(), r.boxes.conf.tolist(), r.boxes.xyxy.tolist())]
+    grid = tile_grid(w, h, tile)
+    if len(grid) == 1:
+        return full
+    objs = []
+    for i in range(0, len(grid), 8):
+        wins = grid[i:i + 8]
+        for (x0, y0, x1, y1), r in zip(wins, model.predict([im.crop(g) for g in wins], imgsz=imgsz, conf=conf, verbose=False)):
+            for c, s, (a, b, cc, d) in zip(r.boxes.cls.tolist(), r.boxes.conf.tolist(), r.boxes.xyxy.tolist()):
+                if int(c) not in OBJECT_CLASSES:
+                    continue
+                edge = 3
+                if (a < edge and x0 > 0) or (b < edge and y0 > 0) or (cc > x1 - x0 - edge and x1 < w) or (d > y1 - y0 - edge and y1 < h):
+                    continue
+                objs.append([int(c), float(s), a + x0, b + y0, cc + x0, d + y0])
+    out = _nms(objs) + [b for b in full if b[0] not in OBJECT_CLASSES]
+    return [[b[0], round(b[1], 4), *[round(v, 1) for v in b[2:6]]] for b in out]
 
 
 def _cached_run(run: str, image: Path, key: str) -> list:
-    f = CACHE / key / f"{run}.json"
+    f = CACHE / key / (f"{run}.t{TILE}.json" if tiled(image) else f"{run}.json")
     if f.exists():
         return json.loads(f.read_text())
     boxes = predict_run(run, image)
@@ -134,4 +210,76 @@ def boxes(run: str | None, image: str | Path) -> dict | None:
     per_run = [_cached_run(m, image, key) for m in runs]
     fused = len(per_run) == 2
     out = fuse(per_run[0], per_run[1]) if fused else per_run[0]
-    return {"boxes": out, "runs": runs, "fused": fused, "complete": tuple(runs) == members(run), "hash": key}
+    return {"boxes": out, "runs": runs, "fused": fused, "complete": tuple(runs) == members(run), "hash": key,
+            "tiled": tiled(image)}
+
+
+# ------------------------------------------------------------------ uploads: the detector trained on two drawing styles
+LIVE_PICKS = Path(__file__).resolve().parent / "cubicasa_live_picks.json"
+
+
+@lru_cache(maxsize=1)
+def live_config() -> dict | None:
+    """The upload detector (cubicasa_live_picks.json): run, image size, thresholds tuned on CubiCasa + Swiss val, tile rule."""
+    return json.loads(LIVE_PICKS.read_text()) if LIVE_PICKS.exists() else None
+
+
+def _n_objects(boxes: list, cfg: dict) -> int:
+    from .cubicasa_rules import select_boxes
+
+    return sum(len(select_boxes(boxes, q, cfg["yolo_thresholds"][q], cfg["yolo_iou"][q]))
+               for q in ("doors", "windows", "toilets", "sinks", "baths"))
+
+
+def _cached(run: str, key: str, mode: str, compute) -> list:
+    f = CACHE / key / f"{run}.{mode}.json"
+    if f.exists():
+        return json.loads(f.read_text())
+    out = compute()
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps(out))
+    return out
+
+
+def boxes_live(image: str | Path) -> dict | None:
+    """Boxes of the upload detector, or None when it isn't installed (then boxes() runs the dataset's pair).
+
+    The whole sheet is detected at the run's image size. A sheet larger than a tile is also detected in tiles, and the
+    tiled boxes are used only when they find far more confident objects (at least `times` as many and `plus` more):
+    then the symbols were too small for the whole-sheet pass (dense dormitory sheets, small-scale plans). On Swiss and
+    CubiCasa sheets this rule never tiles, where whole-sheet detection is the better one (Swiss test 64.8% vs 59.8%)."""
+    cfg = live_config()
+    if cfg is None or os.environ.get("STOA_NO_LIVE_YOLO") or not has_ultralytics() or weight_file(cfg["run"]) is None:
+        return None
+    image = Path(image)
+    if not image.is_file():
+        return None
+    run, size, rule = cfg["run"], cfg["imgsz"], cfg["tile_rule"]
+    key = image_hash(image)
+
+    def full_pass() -> list:
+        model = _load(run)
+        with _lock:
+            r = model.predict(str(image), imgsz=size, conf=CONF, verbose=False)[0]
+        b = r.boxes
+        return [[int(c), round(float(s), 4), *[round(float(v), 1) for v in xyxy]]
+                for c, s, xyxy in zip(b.cls.tolist(), b.conf.tolist(), b.xyxy.tolist())]
+
+    full = _cached(run, key, "full", full_pass)
+    out, used_tiles = full, False
+    from PIL import Image
+
+    with Image.open(image) as im:
+        big = max(im.size) > rule["tile"] * 1.25
+    if big:
+        def tile_pass() -> list:
+            model = _load(run)
+            with _lock:
+                return predict_tiled(model, image, size, rule["tile"], full=full)
+        tiles = _cached(run, key, f"t{rule['tile']}", tile_pass)
+        nf, nt = _n_objects(full, cfg), _n_objects(tiles, cfg)
+        if nt >= rule["times"] * max(nf, 1) and nt - nf >= rule["plus"]:
+            out, used_tiles = tiles, True
+    return {"boxes": out, "runs": [run], "fused": False, "complete": True, "hash": key, "tiled": used_tiles,
+            "selected_on": cfg["selected_on"],
+            "cfg": {"yolo_thresholds": cfg["yolo_thresholds"], "yolo_iou": cfg["yolo_iou"]}}

@@ -857,7 +857,7 @@ function initVoice() {
 async function uploadPlan(file) {
   const msg = $("#up-msg");
   if (!file) return;
-  if (!/^image\/(png|jpeg)$/.test(file.type)) { msg.textContent = "Use a PNG or JPEG image of a floor plan."; return; }
+  if (!/^image\/(png|jpeg|webp|tiff|bmp)$/.test(file.type)) { msg.textContent = "Use a PNG, JPEG, WebP, TIFF or BMP image of a drawing."; return; }
   msg.textContent = `Uploading ${file.name}…`;
   let d;
   try {
@@ -866,8 +866,10 @@ async function uploadPlan(file) {
     d = await r.json();
   } catch (e) { msg.textContent = `Upload failed: ${e.message}`; return; }
   const det = d.detector || {};
-  msg.textContent = det.available?.length ? `${file.name} · detectors: ${det.available.join(" + ")}`
-    : `${file.name} · no detector installed on this server: counts fall back to a vision model or are refused`;
+  const sheet = d.sheets?.[0] || {};
+  const scaled = d.scaled_from ? ` · scaled from ${d.scaled_from[0]}×${d.scaled_from[1]} to ${sheet.width}×${sheet.height} px for reading` : "";
+  msg.textContent = (det.available?.length ? `${file.name} · detectors: ${det.available.join(" + ")}`
+    : `${file.name} · no detector installed on this server: counts fall back to a vision model or are refused`) + scaled;
   await openDrawing(d.id);
 }
 

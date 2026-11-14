@@ -162,3 +162,96 @@ def test_upload_without_a_detector_is_refused_not_guessed(live, monkeypatch):
     assert d["detector"]["available"] == []
     r = c.post("/api/ask", json={"id": d["id"], "question": "How many doors are there?"}).json()
     assert r["value"] is None  # STOA_NO_LLM: no Gemma fallback either, so no number
+
+
+def test_a_sheet_the_detectors_cannot_read_is_declined_not_counted_as_zero(live, monkeypatch):
+    # both models see one faint door on the whole sheet: a "0 windows" would be a blind guess, so the count step declines
+    faint = {"m13-1280": [[DOOR, 0.2, 10, 10, 30, 20]], "local-y11s-13c": [[DOOR, 0.2, 10, 10, 30, 20]]}
+    monkeypatch.setattr(cubicasa_live, "_load", lambda run: type("F", (), {
+        "predict": lambda self, source, imgsz, conf, verbose: [_Result(faint[run])]})())
+    rel = uploads.save(_png())
+    a = cubicasa.answer(rel, "How many windows are there?")
+    assert a.value is None and a.intent == "unreadable" and "cannot read this drawing" in a.method
+
+    from stoa_qa import explain
+    w = explain.explain(uploads.drawing(rel), "How many windows are there?", a, [], llm_ok=False)
+    assert w["category"] == "unreadable" and w["alternatives"] == []
+
+
+def test_tile_grid_covers_the_sheet_with_overlap():
+    g = cubicasa_live.tile_grid(2382, 1684, 960)
+    assert g[0][:2] == (0, 0) and max(x1 for *_, x1, _ in g) == 2382 and max(t[3] for t in g) == 1684
+    assert all(t[2] - t[0] == 960 and t[3] - t[1] == 960 for t in g)
+    assert cubicasa_live.tile_grid(500, 700, 960) == [(0, 0, 500, 700)]
+
+
+def test_printed_room_labels_rescue_a_room_type_the_detector_missed(live, monkeypatch):
+    # the mocked detectors see 3 doors and (fused) one weak bedroom; no kitchen. The plan prints two "Bedroom"s and a kitchen.
+    from stoa_qa import room_labels
+
+    lines = [{"box": [10, 10, 60, 20], "text": "Bedroom", "conf": 0.9}, {"box": [200, 10, 250, 20], "text": "Bedroom", "conf": 0.9},
+             {"box": [100, 100, 150, 110], "text": "Kitchen", "conf": 0.9}, {"box": [100, 200, 160, 210], "text": "Living Room", "conf": 0.9}]
+    monkeypatch.setattr(room_labels, "read", lambda image, key=None: lines)
+    rel = uploads.save(_png())
+    k = cubicasa.answer(rel, "How many kitchens are there?")
+    # a blank test sheet has no walls to bound a room, so the label itself is the evidence
+    assert k.value == 1 and "names 1 kitchen with printed labels" in k.method and k.evidence[0].coords == [[100, 100], [150, 110]]
+    assert cubicasa.answer(rel, "How many bedrooms are there?").value == 1   # the detector found one: it is not overruled
+    assert cubicasa.answer(rel, "How many saunas are there?").value == 0      # no sauna label: the detector's 0 stands
+
+
+def test_room_label_vocabulary():
+    from stoa_qa.room_labels import count, room_type
+
+    assert [room_type(t) for t in ["Bedroom 2", "MH", "Makuuhuone", "Schlafzimmer", "WC/PH", "KPH", "Bathroom", "Keittiö",
+                                   "Living Room", "Parveke"]] == \
+        ["bedrooms", "bedrooms", "bedrooms", "bedrooms", "wc_rooms", "bathrooms", "bathrooms", "kitchens", None, "balconies"]
+    assert count([{"text": "Bedroom"}], "bedrooms") is None  # one room name is not a labelled plan
+
+
+def test_a_huge_sheet_is_stored_scaled_to_the_working_size(live):
+    buf = io.BytesIO()
+    Image.new("RGB", (10200, 6600), "white").save(buf, format="JPEG")
+    rel = uploads.save(buf.getvalue())
+    with Image.open(uploads.resolve(rel)) as im:
+        assert im.size == (4000, 2588)
+
+
+def test_uploads_use_the_two_style_detector_and_tile_only_when_it_finds_far_more(live, monkeypatch):
+    # mixed-m13 installed: whole sheet sees 1 door, tiles see 12 -> tiles win; its own thresholds apply
+    (live["weights"] / "mixed-m13.pt").write_bytes(b"x")
+    cubicasa_live.live_config.cache_clear()
+    monkeypatch.setattr(cubicasa_live, "predict_tiled", lambda model, image, size, tile, full=None:
+                        [[DOOR, 0.9, 10 + 60 * i, 10, 40 + 60 * i, 40] for i in range(12)])
+    monkeypatch.setattr(cubicasa_live, "_load", lambda run: type("M", (), {
+        "predict": lambda self, source, imgsz, conf, verbose: [_Result([[DOOR, 0.9, 10, 10, 40, 40]])]})())
+    big = io.BytesIO()
+    Image.new("RGB", (2400, 1600), "white").save(big, format="PNG")
+    rel = uploads.save(big.getvalue())
+    out = cubicasa_live.boxes_live(uploads.resolve(rel))
+    assert out["runs"] == ["mixed-m13"] and out["tiled"] and len(out["boxes"]) == 12
+    a = cubicasa.answer(rel, "How many doors are there?")
+    assert a.value == 12 and "in overlapping 960 px tiles" in a.method and "CubiCasa val + Swiss val" in a.method
+    small = uploads.save(_png())  # 400 px: no tiling at all
+    assert not cubicasa_live.boxes_live(uploads.resolve(small))["tiled"]
+
+
+def test_a_colour_coded_sheet_counts_rooms_by_its_legend(live, monkeypatch):
+    # a legend swatch + text, three rooms filled with that colour (one far away in a small inset), one other room
+    import numpy as np
+    from stoa_qa import sheet_ocr
+
+    green = (200, 230, 200)  # RGB
+    a = np.full((600, 1200, 3), 255, np.uint8)
+    a[40:60, 900:960] = green                                   # legend swatch, left of its text
+    for x0 in (100, 300, 500):
+        a[200:330, x0:x0 + 150] = green                         # three dorm rooms of the plan
+    a[200:330, 260:300] = (240, 200, 200)                       # a pink room between two of them
+    a[540:560, 1100:1130] = green                               # a key-plan inset far away
+    buf = io.BytesIO()
+    Image.fromarray(a).save(buf, format="PNG")
+    rel = uploads.save(buf.getvalue())
+    monkeypatch.setattr(sheet_ocr, "read", lambda image, key=None: [{"box": [970, 38, 1080, 62], "text": "DORMITORY", "conf": 0.9}])
+    ans = cubicasa.answer(rel, "How many bedrooms are there?")
+    assert ans.value == 3 and "'DORMITORY'" in ans.method and len(ans.evidence) == 3
+    assert all(e.kind == "polygon" for e in ans.evidence)

@@ -129,10 +129,11 @@ def train(a) -> None:
     from ultralytics import YOLO
 
     m = YOLO(a.model)
-    m.train(data=str(DATA / "data.yaml"), epochs=a.epochs, imgsz=a.imgsz, batch=a.batch, workers=a.workers, device=0,
+    data = Path(a.data or DATA)
+    m.train(data=str(data / "data.yaml"), epochs=a.epochs, imgsz=a.imgsz, batch=a.batch, workers=a.workers, device=0,
             project=str(RUNS), name=a.name, exist_ok=True, resume=a.resume, flipud=0.5, fliplr=0.5, plots=False,
             patience=a.patience, cache=a.cache or False)
-    res = m.val(data=str(DATA / "data.yaml"), split="test", imgsz=a.imgsz, batch=a.batch, plots=False, workers=a.workers)
+    res = m.val(data=str(data / "data.yaml"), split="test", imgsz=a.imgsz, batch=a.batch, plots=False, workers=a.workers)
     from stoa_qa.cubicasa_rules import CLASSES
 
     print(json.dumps({"run": str(RUNS / a.name), "test_map50": float(res.box.map50), "test_map50_95": float(res.box.map),
@@ -147,7 +148,7 @@ def predict(a) -> None:
     out_dir = REPO / "eval_out" / "yolo" / a.name
     out_dir.mkdir(parents=True, exist_ok=True)
     for split in a.splits:
-        files = sorted((DATA / "images" / split).glob("*.png"))
+        files = sorted((Path(a.data or DATA) / "images" / split).glob("*.png"))
         out = {}
         for i in range(0, len(files), 8):
             batch = [str(f) for f in files[i:i + 8]]
@@ -174,6 +175,7 @@ def main() -> None:
     t.add_argument("--patience", type=int, default=12)
     t.add_argument("--name", default="local-y11s")
     t.add_argument("--resume", action="store_true")
+    t.add_argument("--data", default=None, help="YOLO data folder (default eval_out/yolo_data; CubiCasa + Swiss: eval_out/yolo_data_mixed)")
     t.add_argument("--cache", choices=["disk", "ram"], default=None, help="cache resized images (disk: much faster epochs)")
     p = sub.add_parser("predict")
     p.add_argument("--name", default="local-y11s")
@@ -181,6 +183,7 @@ def main() -> None:
     p.add_argument("--conf", type=float, default=0.05)
     p.add_argument("--splits", nargs="+", default=["val", "test"])
     p.add_argument("--tta", action="store_true")
+    p.add_argument("--data", default=None, help="YOLO data folder to predict (default eval_out/yolo_data)")
     a = ap.parse_args()
     {"extract": lambda: extract(a.workers), "labels": labels, "train": lambda: train(a), "predict": lambda: predict(a)}[a.cmd]()
 

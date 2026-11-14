@@ -1,0 +1,47 @@
+{
+ "run": "mixed-m13",
+ "imgsz": 1280,
+ "trained_on": "CubiCasa5K train + Swiss Dwellings train sheets (labels from the DXF), fine-tuned from m13-1280",
+ "selected_on": "CubiCasa val + Swiss val (room questions: CubiCasa val only)",
+ "test": {
+  "cubicasa_test_label_truth": 0.824,
+  "swiss_test_objects": 0.652,
+  "compare_old_fused": {
+   "cubicasa_test_label_truth": 0.832,
+   "swiss_test_objects_tiled": 0.379
+  }
+ },
+ "tile_rule": {
+  "tile": 960,
+  "times": 2.0,
+  "plus": 10
+ },
+ "yolo_thresholds": {
+  "doors": 0.45,
+  "windows": 0.4,
+  "toilets": 0.45,
+  "sinks": 0.45,
+  "baths": 0.35,
+  "floors": 0.35,
+  "saunas": 0.2,
+  "kitchens": 0.1,
+  "bedrooms": 0.7,
+  "wc_rooms": 0.75,
+  "bathrooms": 0.75,
+  "balconies": 0.35
+ },
+ "yolo_iou": {
+  "doors": 1.0,
+  "windows": 1.0,
+  "toilets": 1.0,
+  "sinks": 1.0,
+  "baths": 1.0,
+  "floors": 0.3,
+  "saunas": 1.0,
+  "kitchens": 0.3,
+  "bedrooms": 1.0,
+  "wc_rooms": 1.0,
+  "bathrooms": 1.0,
+  "balconies": 0.3
+ }
+}

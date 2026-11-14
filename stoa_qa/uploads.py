@@ -17,8 +17,12 @@ from .catalog import Drawing, Sheet
 REPO = Path(__file__).resolve().parent.parent
 PREFIX = "uploads/"
 KIND = "cubicasa5k"           # uploads are read with the raster plan detectors (trained on CubiCasa5K)
-MAX_BYTES = 30 * 1024 * 1024
-MAX_PIXELS = 60_000_000       # a decompression bomb guard; CubiCasa plans are at most a few megapixels
+MAX_BYTES = 100 * 1024 * 1024
+MAX_PIXELS = 250_000_000      # decompression-bomb guard; a full-size A0 scan at 300 dpi is ~140 MP
+# Large sheets (e.g. a 10200 x 6600 px export) are stored scaled so the long side is WORK_SIDE: printed text stays well
+# above what the tiled OCR reads (stoa_qa.sheet_ocr zooms tiles 2x) and the detectors' tiles stay few. At full size a
+# sheet would take minutes to read, for no extra accuracy.
+WORK_SIDE = 4000
 SUGGESTED = ["How many doors are there?", "How many windows are there?", "How many bedrooms are there?",
              "How many bathrooms are there?", "How many separate WC rooms are there?", "How many kitchens are there?",
              "How many toilet bowls are there?", "How many sinks are there?", "How many showers and bathtubs are there?",
@@ -55,12 +59,18 @@ def save(data: bytes) -> str:
     if len(data) > MAX_BYTES:
         raise BadUpload(f"file is larger than {MAX_BYTES // (1024 * 1024)} MB")
     try:
+        Image.MAX_IMAGE_PIXELS = MAX_PIXELS  # PIL's own bomb check would refuse ~180 MP sheets
         with Image.open(io.BytesIO(data)) as im:
             w, h = im.size
             if w * h > MAX_PIXELS:
-                raise BadUpload(f"image is too large ({w}x{h} px)")
+                raise BadUpload(f"image is too large ({w}x{h} px, at most {MAX_PIXELS // 1_000_000} megapixels)")
+            if max(w, h) > WORK_SIDE:
+                im.draft("RGB", (w * WORK_SIDE // max(w, h), h * WORK_SIDE // max(w, h)))  # JPEG: decode at reduced size
             im.load()
             img = im.convert("RGB")
+            if max(img.size) > WORK_SIDE:
+                k = WORK_SIDE / max(img.size)
+                img = img.resize((round(img.width * k), round(img.height * k)), Image.LANCZOS)
     except BadUpload:
         raise
     except Exception:

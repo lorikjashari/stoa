@@ -4,6 +4,7 @@
                   not_understood the question did not map onto anything the engines read
                   needs_llm     free-form wording needs the language model, which is not configured
                   failed        a reader broke (timeout, malformed reply)
+                  unreadable    the plan detectors found almost nothing on an uploaded image (style / scale outside training)
     detail        what this kind of drawing does contain, plus the most specific note an engine left
     checked       who was asked (the crew trace) in plain words
     alternatives  up to 4 questions this drawing can answer, closest to the asked one first, built from the
@@ -45,6 +46,8 @@ def _words(text: str) -> set[str]:
 def category(answer: Answer, trace: list[dict], llm_ok: bool) -> str:
     if answer.intent == "scoped":  # stoa_qa.scope: the question names a room / apartment we could not pin down
         return "ambiguous"
+    if answer.intent == "unreadable":  # stoa_qa.cubicasa.readable: a count of 0 would have been a blind guess
+        return "unreadable"
     notes = " ".join([answer.method or ""] + [t.get("note") or "" for t in trace]).lower()
     # the planner's decline contract (stoa_qa.planner.answer): unanswerable / error / unknown / plan_* with no rows
     if re.search(r"fea\w*_api_key is not set|api key", notes):
@@ -71,6 +74,7 @@ HEADLINE = {
     "needs_llm": "Free-form questions need the language model, which isn't set up",
     "failed": "A reader failed on this question",
     "ambiguous": "Which room or apartment do you mean?",
+    "unreadable": "The detectors can't read this drawing, so I won't guess a count",
 }
 NEXT = {
     "not_in_data": "Ask about something the drawing does hold, or check another sheet of the same project.",
@@ -78,6 +82,7 @@ NEXT = {
     "needs_llm": "Add FEATHERLESS_API_KEY to .env for free-form questions; the questions below work without it.",
     "failed": "Asking again often works; the questions below use other readers.",
     "ambiguous": "Name it the way the drawing labels it (a room number like 2.14, a label, or an apartment letter).",
+    "unreadable": "Upload a tighter crop of one floor, or a plan at a larger scale; on drawings like this the count needs a person.",
 }
 
 
@@ -178,6 +183,9 @@ def explain(d, question: str, answer: Answer, trace: list[dict], llm_ok: bool) -
         if alts:
             return {"category": cat, "headline": HEADLINE[cat], "detail": note or carries, "next": NEXT[cat],
                     "checked": checked, "alternatives": alts}
+    if cat == "unreadable":  # other count questions fail the same way on this sheet: offer none
+        return {"category": cat, "headline": HEADLINE[cat], "detail": note, "next": NEXT[cat], "checked": checked,
+                "alternatives": []}
     asked = _words(question)
     caps = _capabilities(d)
     ranked = sorted(caps, key=lambda c: (-len(asked & _words(c)), caps.index(c)))

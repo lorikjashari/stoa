@@ -201,6 +201,18 @@ def solve(d: Drawing, question: str, sheet: tuple[str, int] | None = None) -> Re
             return done(a, "document", f"Rows of the sheet's text selected by {llm.MODEL.split('/')[-1]}, counted by us")
         fallback = fallback or a
 
+    # 3b. an uploaded raster sheet: the same document clerk over its text, read at full resolution (stoa_qa.sheet_ocr)
+    rows = _upload_rows(d) if pdf is None and llm.available() else None
+    if rows is not None and len(rows) >= 8:
+        t = time.perf_counter()
+        a, u = docqa.ask(d.ask_path, question, rows=rows)
+        usage += _usage(u)
+        asked("document", a, t, tokens(u))
+        if a.value is not None:
+            return done(a, "document", f"Rows of the sheet's text (read by OCR at full resolution) selected by "
+                                       f"{llm.MODEL.split('/')[-1]}, counted by us")
+        fallback = fallback or a
+
     # 4. vision on the sheet
     raster = primary_raster(d)
     if raster is not None and llm.available():
@@ -216,6 +228,19 @@ def solve(d: Drawing, question: str, sheet: tuple[str, int] | None = None) -> Re
 
     a = fallback or Answer(None, None, "unknown", 0.0, "No engine can answer this for this drawing yet.")
     return done(a, "none", "")
+
+
+def _upload_rows(d: Drawing) -> list[dict] | None:
+    """Printed rows of an uploaded raster sheet (OCR, cached per image), None for anything else or without OCR."""
+    if not d.ask_path.startswith("uploads/"):
+        return None
+    from . import cubicasa_live
+
+    image = sheets.safe_path(d.ask_path)
+    try:
+        return docqa.raster_layout(image, cubicasa_live.image_hash(image))
+    except Exception:  # OCR not installed or unreadable image: the vision reader still runs
+        return None
 
 
 def presented(question: str, a: Answer) -> str:
