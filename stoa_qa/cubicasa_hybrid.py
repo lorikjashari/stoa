@@ -18,11 +18,13 @@ import collections
 import json
 from pathlib import Path
 
+from . import cubicasa_refine as refine
 from .cubicasa_gemini import QUESTIONS, REPO, load_truth, split_members
+from .cubicasa_rules import CLASSES as YOLO_CLASSES
+from .cubicasa_rules import QUESTION_CLASSES as YOLO_Q
+from .cubicasa_rules import select_boxes
 
 KEYS = [k for k, _, _ in QUESTIONS]
-YOLO_CLASSES = ["door", "window", "toilet", "sink", "shower", "bathtub"]
-YOLO_Q = {"doors": ["door"], "windows": ["window"], "toilets": ["toilet"], "sinks": ["sink"], "baths": ["shower", "bathtub"]}
 THRESHOLDS = [round(0.05 * i, 2) for i in range(1, 19)]
 
 
@@ -36,22 +38,26 @@ def load_counts_dir(d: Path) -> dict[str, dict]:
     return out
 
 
-def yolo_counts(boxes: list, thr: dict[str, float]) -> dict[str, int]:
-    out = {}
-    for q, cls in YOLO_Q.items():
-        ids = [YOLO_CLASSES.index(c) for c in cls]
-        out[q] = sum(1 for b in boxes if b[0] in ids and b[1] >= thr[q])
-    return out
+IOUS = [0.3, 0.5, 0.7, 1.0]  # cross-class duplicate suppression; 1.0 = off
 
 
-def tune_yolo(val_boxes: dict, truth: dict) -> dict[str, float]:
-    thr = {}
-    for q in YOLO_Q:
-        best = max(THRESHOLDS, key=lambda t: sum(
-            yolo_counts(b, {qq: t for qq in YOLO_Q})[q] == truth[p][q]
-            for p, b in val_boxes.items() if q in truth.get(p, {})))
-        thr[q] = best
-    return thr
+TILE_QUESTIONS = ("doors", "windows")  # the tiled detector (modal_jobs/cubicasa_tiles.py) only has these classes
+
+
+def yolo_counts(boxes: list, thr: dict[str, float], iou: dict[str, float] | None = None, questions=None) -> dict[str, int]:
+    return {q: len(select_boxes(boxes, q, thr[q], (iou or {}).get(q, 1.0))) for q in (questions or YOLO_Q)}
+
+
+def tune_yolo(val_boxes: dict, truth: dict, questions=None) -> tuple[dict[str, float], dict[str, float]]:
+    """Per question: the score threshold and duplicate-overlap cut that are exact most often on VAL."""
+    thr, iou = {}, {}
+    for q in (questions or YOLO_Q):
+        plans = [(b, truth[p][q]) for p, b in val_boxes.items() if q in truth.get(p, {})]
+        # ties go to the simpler setting: no suppression, then the threshold closest to 0.5
+        best = max(((t, u) for t in THRESHOLDS for u in IOUS),
+                   key=lambda tu: (sum(len(select_boxes(b, q, tu[0], tu[1])) == g for b, g in plans), tu[1], -abs(tu[0] - 0.5)))
+        thr[q], iou[q] = best
+    return thr, iou
 
 
 def acc(preds: dict, truth: dict, plans, key) -> tuple[int, int]:
@@ -63,30 +69,64 @@ def acc(preds: dict, truth: dict, plans, key) -> tuple[int, int]:
     return ok, n
 
 
-def main() -> None:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--yolo-run", default="y11s-1280")
-    a = ap.parse_args()
-    truth = load_truth()
-    split = {s: sorted(p for p in split_members(s) if p in truth) for s in ("val", "test")}
+def _boxes(run: str, split: str) -> dict:
+    f = REPO / "eval_out/yolo" / run / f"{split}.json"
+    return {f"data/cubicasa5k/{k}.png": v for k, v in json.loads(f.read_text()).items()} if f.exists() else {}
 
+
+def load_detector(run: str | None, questions=None, thr: dict | None = None, iou: dict | None = None, truth: dict | None = None):
+    """(per-plan counts, thresholds, overlap cuts) for one detector run; tuned on VAL when `thr` is not given."""
+    vb, tb = (_boxes(run, "val"), _boxes(run, "test")) if run else ({}, {})
+    if not vb or not tb:
+        return None, {}, {}
+    if not thr:
+        thr, iou = tune_yolo(vb, truth, questions)
+    return {p: yolo_counts(b, thr, iou, questions) for p, b in {**vb, **tb}.items()}, thr, iou or {}
+
+
+def load_sources(yolo_run: str | None, thr: dict | None = None, iou: dict | None = None, truth: dict | None = None):
+    """Every source's per-plan counts, as the app computes them. Returns (sources, yolo thresholds, yolo overlap cuts).
+
+    Without `thr`, the detector's thresholds are tuned here on the VAL split (needs `truth`)."""
     sources: dict[str, dict] = {}
+    seg = {}
+    seg_file = REPO / "eval_out/seg_components.jsonl"
+    if seg_file.exists():
+        for line in seg_file.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                rec = json.loads(line)
+                seg[rec["path"]] = rec
     net = {}
     for f in (REPO / "third_party/cubicasa_preds").glob("*.json"):
         r = json.loads(f.read_text())
-        if "counts" in r:
-            net[r["path"]] = r["counts"]
+        if "counts" in r:  # the counts the app serves: network + refine rules (+ class-map components when cached)
+            net[r["path"]] = refine.apply(r, seg.get(r["path"]))
     sources["network"] = net
     sources["gemma"] = load_counts_dir(REPO / "eval_out/gemini/google__gemma-4-31B-it")
     sources["gemini"] = load_counts_dir(REPO / "eval_out/gemini/gemini-3.5-flash")
 
-    ydir = REPO / "eval_out/yolo" / a.yolo_run
-    if (ydir / "val.json").exists() and (ydir / "test.json").exists():
-        vb = {f"data/cubicasa5k/{k}.png": v for k, v in json.loads((ydir / "val.json").read_text()).items()}
-        tb = {f"data/cubicasa5k/{k}.png": v for k, v in json.loads((ydir / "test.json").read_text()).items()}
-        thr = tune_yolo(vb, truth)
+    counts, thr, iou = load_detector(yolo_run, None, thr, iou, truth)
+    if counts is not None:
+        sources["yolo"] = counts
+    return sources, thr, iou
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--yolo-run", default="local-y11s-13c")
+    ap.add_argument("--tile-run", default=None, help="tiled door/window detector run (modal_jobs/cubicasa_tiles.py)")
+    a = ap.parse_args()
+    truth = load_truth()
+    split = {s: sorted(p for p in split_members(s) if p in truth) for s in ("val", "test")}
+
+    sources, thr, iou = load_sources(a.yolo_run, truth=truth)
+    if "yolo" in sources:
         print("yolo thresholds (tuned on val):", thr)
-        sources["yolo"] = {p: yolo_counts(b, thr) for p, b in {**vb, **tb}.items()}
+        print("yolo duplicate-overlap cut (tuned on val):", iou)
+    tcounts, tthr, tiou = load_detector(a.tile_run, TILE_QUESTIONS, truth=truth)
+    if tcounts is not None:
+        sources["tiles"] = tcounts
+        print("tile thresholds / overlap cuts (tuned on val):", tthr, tiou)
 
     cov = {s: (sum(p in d for p in split["val"]), sum(p in d for p in split["test"])) for s, d in sources.items()}
     print("coverage (val, test plans):", cov)
@@ -118,7 +158,9 @@ def main() -> None:
     if picked:
         out = Path(__file__).with_name("cubicasa_picks.json")
         out.write_text(json.dumps({"picks": picked, "selected_on": "CubiCasa5K val split", "yolo_run": a.yolo_run if "yolo" in sources else None,
-                                   "yolo_thresholds": thr if "yolo" in sources else {},
+                                   "yolo_thresholds": thr, "yolo_iou": iou,
+                                   "tile_run": a.tile_run if "tiles" in sources else None,
+                                   "tile_thresholds": tthr, "tile_iou": tiou,
                                    "test_accuracy": round(tot_ok / max(tot_n, 1), 4), "test_questions": tot_n}, indent=1) + "\n")
         print(f"picks -> {out}")
 

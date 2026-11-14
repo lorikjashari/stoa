@@ -17,7 +17,8 @@ REPO = Path(__file__).resolve().parent.parent
 VOL = "/vol"
 DATA = f"{VOL}/yolo"
 RUNS = f"{VOL}/runs"
-CLASSES = ["door", "window", "toilet", "sink", "shower", "bathtub", "floor"]  # same order as stoa_qa/cubicasa_rules.py
+CLASSES = ["door", "window", "toilet", "sink", "shower", "bathtub", "floor",
+           "sauna", "kitchen", "bedroom", "wc_room", "bathroom", "balcony"]  # same order as stoa_qa/cubicasa_rules.py
 
 vol = modal.Volume.from_name("stoa-cubicasa", create_if_missing=True)
 app = modal.App("stoa-cubicasa-detector")

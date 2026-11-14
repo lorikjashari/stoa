@@ -12,6 +12,7 @@ Only web/, blueprint3d/ and dataset files are ever served (the repo root holds .
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 import threading
@@ -24,7 +25,7 @@ from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import catalog, llm, pipeline, sheets
+from . import catalog, graph, llm, pipeline, sheets
 from .core import DATASET
 
 REPO = Path(__file__).resolve().parent.parent
@@ -51,6 +52,8 @@ class Ask(BaseModel):
     id: str | None = None
     path: str | None = None  # legacy: any file of the drawing
     question: str
+    sheet_path: str | None = None  # the sheet on screen (multi-page PDF sets: which page the question is about)
+    sheet_page: int = 0
 
 
 def _drawing(id_or_path: str) -> catalog.Drawing:
@@ -110,7 +113,8 @@ def drawing(id: str):
     qs = catalog.questions_for(d)
     return {**d.summary(), "ask_path": d.ask_path, "files": d.files, "sheets": out_sheets,
             "questions": _suggest(qs), "question_count": len(qs), "credit": catalog.credit_for(d),
-            "source_info": catalog.SOURCE_INFO.get(d.source, {}), "scene": _scene_name(d) if d.model else None}
+            "source_info": catalog.SOURCE_INFO.get(d.source, {}), "scene": _scene_name(d) if d.model else None,
+            "model": d.model, "model_note": d.model_note}
 
 
 def _q(s: str) -> str:
@@ -180,9 +184,10 @@ def thumb(id: str, w: int = 360):
 
 
 @app.get("/api/crop")
-def crop(path: str, x0: float, y0: float, x1: float, y1: float, kind: str = "image", page: int = 0):
+def crop(path: str, x0: float, y0: float, x1: float, y1: float, kind: str = "image", page: int = 0, size: int = 220):
     _file(path)
-    return FileResponse(sheets.crop("pdf" if kind == "pdf" else "image", path, (x0, y0, x1, y1), page), media_type="image/jpeg")
+    size = max(80, min(int(size), 900))  # larger crops for referenced details
+    return FileResponse(sheets.crop("pdf" if kind == "pdf" else "image", path, (x0, y0, x1, y1), page, size=size), media_type="image/jpeg")
 
 
 # ------------------------------------------------------------------ questions
@@ -192,7 +197,8 @@ def ask(req: Ask):
     d = _drawing(req.id or req.path or "")
     if not req.question.strip():
         raise HTTPException(400, "empty question")
-    return pipeline.respond(d, req.question)
+    sheet = (req.sheet_path, req.sheet_page) if req.sheet_path and req.sheet_path in d.files else None
+    return pipeline.respond(d, req.question, sheet)
 
 
 @app.get("/api/questions")
@@ -200,10 +206,114 @@ def questions(id: str):
     return catalog.questions_for(_drawing(id))
 
 
+@app.get("/api/graph")
+def room_graph(id: str):
+    """The drawing's room graph (stoa_qa.graph). Swiss sheets get pixel positions so the app can draw it."""
+    d = _drawing(id)
+    g = graph.for_path(d.ask_path)
+    if g is None:
+        raise HTTPException(404, "no room topology for this drawing")
+    out = graph.to_json(g)
+    out["space"] = None
+    if d.source == "swiss_dwellings":
+        stem = Path(d.ask_path).stem
+        for item in out["nodes"] + out["edges"]:
+            c = item.pop("center")
+            px = sheets.swiss_to_px(stem, [list(c)]) if c else None
+            item["px"] = px[0] if px else None
+        out["space"] = "px" if any(n["px"] for n in out["nodes"]) else None
+    else:
+        for item in out["nodes"] + out["edges"]:
+            item.pop("center", None)
+    out["counts"] = {k: sum(e["kind"] == k for e in out["edges"]) for k in ("door", "open", "wall", "stair")}
+    return out
+
+
 # ------------------------------------------------------------------ 3D scenes (built on demand for blueprint3d/viewer)
 
 def _scene_name(d: catalog.Drawing) -> str:
-    return Path(d.model).stem if d.model else ""
+    if not d.model:
+        return ""
+    stem = Path(d.model).stem
+    if d.source == "opening_design":  # project models have generic names ("Model.ifc"): prefix the project
+        stem = f"{Path(d.model).parts[2]}-{stem}"
+    return re.sub(r"[^A-Za-z0-9_.-]+", "-", stem).strip("-")
+
+
+def _build_scene(d: catalog.Drawing, name: str) -> dict:
+    """Scene JSON for a drawing's model, using the same readers that answer questions."""
+    sys.path.insert(0, str(REPO / "blueprint3d"))
+    path = str(DATASET / d.model)
+    if d.model_kind == "ifc":
+        import ifc_to_scene
+
+        return ifc_to_scene.build_scene(path)
+    if d.model_kind == "dxf":
+        import dxf_to_scene
+
+        return dxf_to_scene.build_scene(path, dxf_to_scene.DEFAULTS)
+    if d.model_kind == "mesh":
+        import mesh_to_scene
+
+        return mesh_to_scene.build_scene(path, str(SCENES / f"{name}.mesh.bin"))
+    if d.model_kind == "raster":
+        stem = Path(path).stem
+        archive = d.source in catalog.ARCHIVE_SOURCES  # needs the floor-plan check, which only raster_to_scene.build() runs
+        if catalog._raster_engine() and archive:
+            import raster_to_scene
+
+            try:
+                return raster_to_scene.build(path, str(SCENES / "_build"))
+            except raster_to_scene.NotAPlan as e:
+                raise NotBuildable(e.reason) from None
+        if not archive and (catalog._raster_engine() or (catalog.NET_CACHE / f"{stem}.json").exists()):  # torch here, or nothing to run
+            import raster_to_scene
+
+            return raster_to_scene.build_scene_model(path)
+        return _raster_scene_subprocess(path)
+    raise ValueError(f"no 3D builder for {d.model_kind!r}")
+
+
+class NotBuildable(Exception):
+    """The drawing cannot become a 3D scene (not a floor plan, nothing detected): the reason is shown to the user."""
+
+
+def _raster_scene_subprocess(path: str) -> dict:
+    """Run blueprint3d/raster_to_scene.py --json in the torch environment (.venv) when this one has no torch.
+
+    Contract (blueprint3d/raster_to_scene.py): one JSON line on stdout per image; exit 0 built ({"ok": true, "scene": file}),
+    2 not a plan ({"ok": false, "kind": "not_a_plan"|"too_little", "reason"}, also <stem>.reject.json), 1 error.
+    A reject file is cached so a sheet that is not a plan answers at once the next time."""
+    import subprocess
+
+    tmp = SCENES / "_build"
+    tmp.mkdir(parents=True, exist_ok=True)
+    stem = Path(path).stem
+    reject = tmp / f"{stem}.reject.json"
+    if reject.exists():
+        msg = json.loads(reject.read_text(encoding="utf-8"))
+        raise NotBuildable(msg.get("reason") or "this sheet is not a floor plan")
+    cmd = [str(catalog.RASTER_PY), "-W", "ignore", str(REPO / "blueprint3d" / "raster_to_scene.py"), path, "-o", str(tmp), "--json"]
+    env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+    p = subprocess.run(cmd, capture_output=True, text=True, timeout=600, cwd=str(REPO), env=env)
+    msg = {}
+    for line in (p.stdout or "").splitlines():
+        line = line.strip()
+        if line.startswith("{"):
+            try:
+                msg = json.loads(line)
+                break
+            except ValueError:
+                pass
+    if msg.get("ok") and Path(msg.get("scene") or tmp / f"{stem}.json").exists():
+        out = Path(msg.get("scene") or tmp / f"{stem}.json")
+        sc = json.loads(out.read_text(encoding="utf-8"))
+        out.unlink(missing_ok=True)
+        return sc
+    if msg.get("kind") in ("not_a_plan", "too_little"):
+        raise NotBuildable(msg.get("reason") or "this sheet is not a floor plan")
+    tail = (msg.get("error") or ((p.stderr or "") + (p.stdout or "")).strip().splitlines()[-1:] or ["no output"])
+    raise NotBuildable(f"the scan could not be traced ({(tail if isinstance(tail, str) else tail[0])[:200]})")
 
 
 @app.post("/api/scene")
@@ -215,19 +325,13 @@ def scene(req: Ask):
     out = SCENES / f"{name}.json"
     with _scene_lock:
         if not out.exists():
-            sys.path.insert(0, str(REPO / "blueprint3d"))
+            SCENES.mkdir(parents=True, exist_ok=True)
             try:
-                if d.model.endswith(".ifc"):
-                    import ifc_to_scene
-
-                    sc = ifc_to_scene.build_scene(str(DATASET / d.model))
-                else:
-                    import dxf_to_scene
-
-                    sc = dxf_to_scene.build_scene(str(DATASET / d.model), dxf_to_scene.DEFAULTS)
+                sc = _build_scene(d, name)
+            except NotBuildable as e:
+                raise HTTPException(422, f"No 3D view for this sheet: {e}") from None
             except Exception as e:
                 raise HTTPException(500, f"could not build the 3D scene: {type(e).__name__}: {e}") from None
-            SCENES.mkdir(parents=True, exist_ok=True)
             # the viewer resolves files from the repo root: store dataset-relative paths the way its own builders do
             src = sc.get("source", {})
             if "file" in src and not str(src["file"]).startswith("data/"):

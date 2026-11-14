@@ -29,7 +29,10 @@ def test_ask_returns_answer_evidence_and_ground_truth_check():
 
 def test_free_form_question_without_llm_is_refused_not_guessed():
     r = client().post("/api/ask", json={"id": ID, "question": "Which room is the largest?"}).json()
-    assert r["value"] is None and r["text"].startswith("I can't answer")
+    assert r["value"] is None  # refused, never guessed
+    why = r["unanswered"]  # and the refusal says why and what to ask instead (stoa_qa.explain)
+    assert why["category"] == "needs_llm" and r["text"] == why["headline"]
+    assert why["alternatives"] and all(q != "Which room is the largest?" for q in why["alternatives"])
 
 
 def test_only_dataset_files_are_served():

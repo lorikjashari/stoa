@@ -111,6 +111,8 @@ def chat_json(system: str, user: str, image: Path | None = None, max_tokens: int
             time.sleep(3 * (attempt + 1))
         except (LLMError, KeyError, json.JSONDecodeError) as e:
             last = f"bad reply: {e}"
+            if "unterminated" in str(e):  # the reply was cut off at max_tokens (long row lists): give it more room
+                body["max_tokens"] = min(int(body["max_tokens"] * 2.5), 4000)
         except Exception as e:  # network
             last = repr(e)[:160]
             time.sleep(2)

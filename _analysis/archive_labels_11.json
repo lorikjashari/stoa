@@ -1,0 +1,7 @@
+{
+ "_note": "Hand labels for _analysis/archive_sample_11.json (seed 11, held-out). Same categories as archive_labels.json.",
+ "wikimedia": ["multi", "plan", "plan", "plan", "plan", "plan", "plan", "plan", "plan", "site", "plan", "plan", "multi", "plan", "plan"],
+ "finna": ["multi", "other", "plan", "other", "other", "multi", "multi", "other", "site", "multi", "multi", "multi", "site", "multi", "plan"],
+ "europeana": ["other", "other", "other", "site", "other", "plan", "multi", "other", "plan", "multi", "other", "plan", "plan", "other", "site"],
+ "habs": ["other", "multi", "plan", "other", "other", "site", "multi", "other", "other", "other", "site", "plan", "plan", "multi", "other"]
+}

@@ -1,6 +1,6 @@
 """Build the demo scenes for the viewer in one go, skipping whatever isn't available on this machine.
 
-    py -I blueprint3d/build_demo_scenes.py                     # DXF + IFC (standard library only)
+    python blueprint3d/build_demo_scenes.py                    # DXF + IFC (same readers as stoa_qa)
     .venv/Scripts/python -W ignore blueprint3d/build_demo_scenes.py   # + raster plans (needs .venv + model)
 
 Uses the drawings shown in the team demo when present; otherwise falls back to the first files of each source
