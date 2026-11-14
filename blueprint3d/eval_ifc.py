@@ -1,7 +1,8 @@
-"""Score the IFC -> scene extractor against Stoa's ground truth for ifc_models (English questions).
+"""Score the IFC scene against Stoa's ground truth for ifc_models (English questions).
 
-    py -I eval_ifc.py [--verbose]
+    python blueprint3d/eval_ifc.py [--verbose]
 
+The scene is built by the same IFC reader that answers questions (stoa_qa.ifc).
 Counts must be exact; areas, lengths and volumes within 2%.
 """
 import argparse, collections, json, os, re, sys, time
@@ -11,7 +12,7 @@ from ifc_to_scene import build_scene
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "junction-dataset", "junction-dataset")
 GROUPS = {"doors": "doors", "windows": "windows", "walls": "walls", "stairs": "stairs", "columns": "columns",
-          "beams": "beams", "slabs": "slabs", "sanitary fixtures": "sanitary"}
+          "beams": "beams", "slabs": "slabs", "sanitary fixtures": "sanitary", "light fixtures": "lights"}
 
 
 def model_path(path):

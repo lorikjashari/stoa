@@ -109,8 +109,9 @@ def swiss_transform(stem: str) -> tuple[float, float, float] | None:
 
     Fitted by least squares on the room numbers, which are printed at the same place in the DXF
     (centre-aligned TEXT) and in the PDF the PNG was rendered from."""
-    import ezdxf
     import pymupdf
+
+    from .swiss import load_floor
 
     base = DATASET / "data/swiss_dwellings"
     try:
@@ -124,10 +125,9 @@ def swiss_transform(stem: str) -> tuple[float, float, float] | None:
         if ROOM_NO.match(word):
             pdf_pos.setdefault(word, []).append(((x0 + x1) / 2 * k, (y0 + y1) / 2 * k))
     dxf_pos: dict[str, list[tuple[float, float]]] = {}
-    for e in ezdxf.readfile(base / f"{stem}.dxf").modelspace():
-        if e.dxftype() == "TEXT" and e.dxf.layer == "ROOM_TEXT" and ROOM_NO.match(e.dxf.text.strip()):
-            p = e.dxf.align_point if e.dxf.hasattr("align_point") else e.dxf.insert
-            dxf_pos.setdefault(e.dxf.text.strip(), []).append((p.x, p.y))
+    for t, _, align in load_floor(stem).room_texts:  # the one DXF reader (stoa_qa.swiss)
+        if ROOM_NO.match(t):
+            dxf_pos.setdefault(t, []).append(align)
     pairs = [(dxf_pos[t][0], pdf_pos[t][0]) for t in dxf_pos if t in pdf_pos and len(dxf_pos[t]) == 1 and len(pdf_pos[t]) == 1]
     if len(pairs) < 2:
         return None

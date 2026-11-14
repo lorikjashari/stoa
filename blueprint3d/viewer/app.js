@@ -38,7 +38,7 @@ async function boot() {
   init3D();
   const index = await (await fetch("scenes/index.json")).json();
   for (const s of index) {
-    const fmt = s.source.endsWith(".ifc") ? "IFC" : /\.(png|jpe?g)$/i.test(s.source) ? "RASTER" : "DXF";
+    const fmt = s.source.endsWith(".ifc") ? "IFC" : /\.(png|jpe?g)$/i.test(s.source) ? "RASTER" : s.counts.faces ? "MESH" : "DXF";
     $("#scene").add(new Option(`[${fmt}] ${s.name}  (${s.counts.rooms} rooms)`, s.name));
   }
   $("#scene").onchange = () => load($("#scene").value);
@@ -57,6 +57,7 @@ async function load(name) {
   const ifc = S.source.format === "ifc";
   document.body.classList.toggle("ifc", ifc);
   if (ifc) return loadIFC(token);
+  if (S.source.format === "mesh") return loadMesh(token);
   for (const g of ["rooms", "walls", "doors", "windows", "units", "fixtures"])
     for (const el of S[g]) byId.set(el.id, { el, group: g, meshes: [], svg: [] });
   build2D(); build3D();
@@ -258,6 +259,28 @@ function applyXray() {
 
 function ownMaterial(m) {
   if (!m.material.userData.own) { m.material = m.material.clone(); m.material.userData.own = true; }
+}
+
+// ------------------------------------------------------------------ mesh: 3D faces stored in a DXF (e.g. a Blender export)
+// <name>.mesh.bin = float32 xyz (already in viewer axes, metres) followed by uint32 triangle indices
+async function loadMesh(token) {
+  const M = S.mesh;
+  $("#assume").textContent = `3D faces from the file, shown as they are · file units: ${S.source.file_units}`;
+  $("#answer").innerHTML = `<b>${S.source.file}</b><div class="method">Loading ${M.faces.toLocaleString()} faces…</div>`;
+  $("#plan").innerHTML = ""; $("#orig img").removeAttribute("src");
+  const buf = await (await fetch(`scenes/${M.file}`)).arrayBuffer();
+  if (token !== loadToken) return;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(buf, 0, M.vertices * 3), 3));
+  geo.setIndex(new THREE.BufferAttribute(new Uint32Array(buf, M.vertices * 12, M.triangles * 3), 1));
+  geo.computeVertexNormals();
+  newRoot();
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xe9ebee, roughness: .85, flatShading: true, side: THREE.DoubleSide }));
+  mesh.userData = { group: "other", wallLike: false };
+  root.add(mesh);
+  const z = S.size;
+  $("#answer").innerHTML = `<b>${S.source.file}</b><div class="method">${M.faces.toLocaleString()} faces · ${z.x.toFixed(1)} × ${z.y.toFixed(1)} m, ${z.height.toFixed(1)} m tall — the mesh stored in the DXF. It has no element types (walls, doors…), so answers cannot be highlighted on it.</div>`;
+  frame();
 }
 
 // ------------------------------------------------------------------ IFC: real BIM geometry via web-ifc
@@ -513,7 +536,7 @@ function answerDXF(q) {
   }
   if ((m = t.match(/apartment\s+([a-z])\b/)) || (m = t.match(/(?:whg\.?|appt?\.?|wohnung|appartement)\s*([a-z])\b/))) {
     const u = S.units.find((u) => norm(u.label).endsWith(" " + m[1]) || norm(u.label).endsWith("." + m[1]));
-    if (u) { const rs = R.filter((r) => r.unit === u.id && indoor(r)); return res([u, ...rs], `${sum(rs)} m²`, `Sum of ${rs.length} indoor rooms inside ${u.label} (outdoor spaces excluded).`); }
+    if (u) { const rs = R.filter((r) => r.unit === u.id && indoor(r) && !r.stairwell); return res([u, ...rs], `${sum(rs)} m²`, `Sum of ${rs.length} indoor rooms inside ${u.label} (outdoor spaces and stairwells excluded).`); }
   }
   if (/area|fläche|surface/.test(t)) {
     const lab = quoted(t)[0] ?? null;

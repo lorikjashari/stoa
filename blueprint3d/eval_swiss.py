@@ -1,9 +1,9 @@
-"""Score the DXF -> scene extractor against Stoa's ground truth for swiss_dwellings (English questions).
+"""Score the DXF scene against Stoa's ground truth for swiss_dwellings (English questions).
 
-    py -I eval_swiss.py [--limit N]
+    python blueprint3d/eval_swiss.py [--limit N]
 
-Uses the same scene the 3D viewer renders, so this number is also the accuracy of what the 3D model shows.
-Counts must be exact; areas within 2% (the challenge's scoring rule).
+The scene is built by the same DXF reader that answers questions (stoa_qa.swiss), so this number
+is also the accuracy of what the 3D model shows. Counts must be exact; areas within 2%.
 """
 import argparse, collections, json, os, re, sys
 
@@ -30,7 +30,8 @@ def answer(scene, q):
         return "room area", hit[0]["area_m2"] if hit else None
     if m := re.match(r"What is the net floor area of apartment ([A-Z]) ", q):
         u = next((u for u in scene["units"] if u["label"] and u["label"].rstrip().endswith(m[1])), None)
-        return "apartment area", total([r for r in indoor if u and r["unit"] == u["id"]]) if u else None
+        # same rooms the answer engine sums: indoor, and not a stairwell
+        return "apartment area", total([r for r in indoor if u and r["unit"] == u["id"] and not r.get("stairwell")]) if u else None
     if m := re.match(r"What is the total net area in m² of all rooms labelled '(.+)'", q):
         return "label total area", total([r for r in R if r["label"] == m[1]])
     if q.startswith("What is the total net floor area in m² of all numbered indoor rooms"):

@@ -25,6 +25,36 @@ SOURCE_INFO = {
 }
 SOURCE_ORDER = list(SOURCE_INFO)
 
+REPO = Path(__file__).resolve().parent.parent
+SCENES = REPO / "blueprint3d" / "viewer" / "scenes"           # built 3D scenes (gitignored)
+NET_CACHE = REPO / "third_party" / "cubicasa_preds"          # cached CubiCasa5K network predictions
+
+# opening_design sheets carry no 3D of their own, but most projects ship a building model next to them.
+# Every file in the project folder gets that model as its 3D view (labelled as the project's, not the sheet's).
+# Picked by hand: the full building model, not FreeCAD round-trip tests, detail fragments or "bad IFC" autopsies.
+PROJECT_MODELS = {
+    "104_Janesville": "Model/Patricks.ifc",
+    "3_Offices": "Models/3_Offices.ifc",
+    "Aalseth_Residence": "Models & CAD/BIM/3196 Aalseth Lane.ifc",
+    "Accessory_Dwelling_Unit": "Models & CAD/BIM/Accessory_Dwelling_Unit.ifc",
+    "CTR": "Models & CAD/IFC - CTR/CTR-CTR - 1st Phase - Unit Layouts.ifc",
+    "Crema_Cafe": "Models/crema cafe 6.blend.dxf",
+    "Facilities_Building": "Models & CAD/BIM/IFC/1810 S Park.ifc",
+    "Lake_Kegonsa_Home": "Model/Lake_Kegonsa.ifc",
+    "Open_Source_Metal_Building": "Model/Open Source Metal Building_Exterior-Open Source Metal Building_Interior.ifc",
+    "Salon": "Models/Blue October.ifc",
+    "Schultz_Residence": "Model/Schultz_Residence.ifc",
+    "Screened_in_Porch": "Models & CAD/BIM/Model.ifc",
+    "Sports_Complex": "Transfer/_Archive/20150313 - model to clinic architect/Sports Complex.ifc",
+    "ULI-44_E_Mifflin-Suite_802": "Models/Model_MASTER.ifc",
+    "ULI_Gooseberry": "Models/ULI Gooseberry.ifc",
+}
+PROJECT_MODEL_NOTES = {
+    "CTR": "the 1st-phase unit-layout model (walls, doors, slabs); shell, structure and stairs are separate files",
+    "Crema_Cafe": "a 3D mesh exported from Blender (no element types)",
+    "Sports_Complex": "an early design model (13 Mar 2015); the current sheets may differ",
+}
+
 
 @dataclass
 class Sheet:
@@ -44,11 +74,14 @@ class Drawing:
     files: list[str] = field(default_factory=list)
     sheets: list[Sheet] = field(default_factory=list)
     n_questions: int = 0
-    model: str | None = None   # .ifc / .dxf usable for the 3D view
+    model: str | None = None   # dataset file the 3D view is built from
+    model_kind: str | None = None  # ifc | dxf (Swiss plan, extruded) | mesh (3D faces) | raster (scan, approximate)
+    model_note: str | None = None  # shown with the 3D view when it is not simply "this drawing's own model"
 
     def summary(self) -> dict:
         return {"id": self.id, "source": self.source, "title": self.title, "formats": self.formats,
-                "n_questions": self.n_questions, "has_sheet": bool(self.sheets), "has_3d": self.model is not None}
+                "n_questions": self.n_questions, "has_sheet": bool(self.sheets), "has_3d": self.model is not None,
+                "model_kind": self.model_kind}
 
     def detail(self) -> dict:
         return {**asdict(self), "has_3d": self.model is not None}
@@ -132,9 +165,7 @@ def catalog() -> dict[str, Drawing]:
                 sheets.append(Sheet("pdf", by_ext[".pdf"][0], "Sheet"))
             elif by_ext[".svg"]:
                 sheets.append(Sheet("image", by_ext[".svg"][0], "Sheet"))
-        model = (by_ext[".ifc"] or by_ext[".dxf"] or [None])[0]
-        if source == "opening_design" and model and model.endswith(".dxf"):
-            model = None  # layer names differ from the Swiss convention: no 3D builder yet
+        model, kind, note = _model_for(source, key, by_ext)
         with_q = [f for f in files if f in qidx]
         primary = (by_ext[".ifc"] or by_ext[".pdf"] or [s.path for s in sheets] or files)[0] if source != "cubicasa5k" else files[0]
         ask = with_q[0] if with_q else primary
@@ -143,8 +174,56 @@ def catalog() -> dict[str, Drawing]:
         out[primary] = Drawing(
             id=primary, source=source, title=_pretty(source, key), ask_path=ask,
             formats=sorted({Path(f).suffix.lower().lstrip(".") for f in files}), files=files, sheets=sheets,
-            n_questions=sum(len(qidx.get(f, [])) for f in files), model=model)
+            n_questions=sum(len(qidx.get(f, [])) for f in files), model=model, model_kind=kind, model_note=note)
     return out
+
+
+RASTER_PY = REPO / ".venv" / "Scripts" / "python.exe"  # the torch environment (SETUP.md step 4); the app's own venv may lack torch
+ARCHIVE_SOURCES = {"wikimedia", "finna", "europeana", "habs"}  # scans: 3D only when the sheet turns out to be a floor plan
+
+
+@lru_cache(maxsize=1)
+def _raster_engine() -> bool:
+    """The CubiCasa5K network can run in this process (torch + OpenCV + weights)."""
+    import importlib.util
+    return all(importlib.util.find_spec(m) for m in ("torch", "cv2")) and \
+        (REPO / "third_party" / "weights" / "model_best_val_loss_var.pkl").exists()
+
+
+@lru_cache(maxsize=1)
+def _raster_engine_anywhere() -> bool:
+    """...or in the torch environment next to it, which api._raster_scene_subprocess runs."""
+    site = REPO / ".venv" / "Lib" / "site-packages"
+    return _raster_engine() or (RASTER_PY.exists() and (site / "torch").exists() and (site / "cv2").exists()
+                                and (REPO / "third_party" / "weights" / "model_best_val_loss_var.pkl").exists())
+
+
+def _model_for(source: str, key: str, by_ext) -> tuple[str | None, str | None, str | None]:
+    """(dataset file the 3D view is built from, kind, note) for one drawing."""
+    if by_ext[".ifc"]:
+        return by_ext[".ifc"][0], "ifc", None
+    if source == "swiss_dwellings" and by_ext[".dxf"]:
+        return by_ext[".dxf"][0], "dxf", None
+    if source == "opening_design":
+        project = Path(key).parts[1] if len(Path(key).parts) > 2 else None
+        rel = PROJECT_MODELS.get(project)
+        if rel:
+            model = f"data/opening_design/{project}/{rel}"
+            extra = PROJECT_MODEL_NOTES.get(project)
+            note = f"Project model {Path(rel).name}" + (f": {extra}" if extra else "") + ". Not generated from this sheet."
+            return model, "mesh" if rel.endswith(".dxf") else "ifc", note
+        return None, None, None
+    if source == "cubicasa5k" and by_ext[".png"]:
+        png = by_ext[".png"][0]
+        stem = Path(png).stem
+        if (SCENES / f"{stem}.json").exists() or (NET_CACHE / f"{stem}.json").exists() or _raster_engine_anywhere():
+            return png, "raster", "Approximate: walls, rooms, doors and windows detected by the CubiCasa5K network on the scan; heights assumed."
+    if source in ARCHIVE_SOURCES and _raster_engine_anywhere():
+        img = next((f for ext in (".jpg", ".jpeg", ".png") for f in by_ext.get(ext, [])), None)
+        if img:
+            return img, "raster", ("Approximate and only for floor plans: traced from an archive scan by a network trained on modern "
+                                   "Finnish plans; elevations, sections and photos get no 3D. Heights assumed.")
+    return None, None, None
 
 
 def questions_for(d: Drawing) -> list[dict]:

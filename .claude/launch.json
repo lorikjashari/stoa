@@ -6,6 +6,18 @@
       "runtimeExecutable": "py",
       "runtimeArgs": ["-m", "http.server", "8765", "--bind", "127.0.0.1"],
       "port": 8765
+    },
+    {
+      "name": "plumbline-app",
+      "runtimeExecutable": "venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "stoa_qa.api:app", "--port", "8765"],
+      "port": 8765
+    },
+    {
+      "name": "plumbline",
+      "runtimeExecutable": "venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "stoa_qa.api:app", "--port", "8766"],
+      "port": 8766
     }
   ]
 }
