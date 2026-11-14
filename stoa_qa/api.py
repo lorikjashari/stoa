@@ -259,6 +259,12 @@ def questions_legacy(path: str):
 
 @app.get("/")
 def root():
+    landing = WEB / "landing.html"
+    return FileResponse(landing) if landing.exists() else RedirectResponse("/app")
+
+
+@app.get("/app")
+def web_app():
     index = WEB / "index.html"
     return FileResponse(index) if index.exists() else RedirectResponse("/blueprint3d/viewer/")
 

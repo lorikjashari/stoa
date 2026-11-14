@@ -15,7 +15,7 @@ Two things we are building:
 
 ```bash
 uv sync
-uv run uvicorn stoa_qa.api:app --port 8765     # then open http://localhost:8765
+uv run uvicorn stoa_qa.api:app --port 8765     # landing page: http://localhost:8765 · the app: http://localhost:8765/app
 ```
 
 The dataset goes in `junction-dataset/junction-dataset/` (see [SETUP.md](SETUP.md) step 2). Put `FEATHERLESS_API_KEY=...` in `.env` to enable free-form questions; without it the app still runs, geometry only.
