@@ -32,7 +32,7 @@ How a question is answered, cheapest trustworthy engine first (`stoa_qa/pipeline
 | Step | Used for | LLM use | Evidence shown |
 | --- | --- | --- | --- |
 | 1. Geometry / BIM | dataset-style questions on CAD and IFC drawings | none | polygons on the sheet, IFC elements |
-| 1. Detection hybrid | counts on raster plans | none at question time for evaluated plans (network and Gemma counts are precomputed); one Gemma call for a new plan | the network's detected shapes |
+| 1. Detection hybrid | counts on raster plans | none: a detector trained on CubiCasa's own annotations counts, the CubiCasa network cross-checks (one Gemma call only for a plan with no detections) | one box per counted item |
 | 2. Query planner | free-form questions on CAD and IFC | Gemma 4 plans one query: about 1,200 tokens, $0.00015 | the rows the query returned |
 | 3. Sheet text | PDF sheets with real text, e.g. schedules | Gemma picks the rows; the count is done by us | each picked row, highlighted |
 | 4. Vision | scans and anything without structure | Gemma reads the image | the model's own boxes, flagged low confidence |
@@ -43,11 +43,43 @@ Measured results (see the Benchmark button in the app, built by `python -m stoa_
 | --- | --- | --- |
 | Swiss CAD floor plans, 4 languages | 37,584 | **99.49%** |
 | IFC models, 9 languages | 3,062 | **99.90%** |
-| Raster plans, CubiCasa5K held-out test split: hybrid | 3,398 | **65.9%** (network alone 50.2%, Gemma 4 alone 63.4%) |
-| Raster plans when two independent sources agree (34% of answers) | | **86.9%** — this is what the confidence badge reports |
+| Raster plans, CubiCasa5K held-out test split: hybrid | 3,398 | **84.2%** (CubiCasa network + rules 63.4%, Gemma 4 alone 63.4%) |
+| Raster plans when the detectors and the network agree (64% of answers) | | **92.2%**: this is what the confidence badge reports (69.7% when they disagree) |
 | Door and finish schedules on real PDF sheets: row counts (first version) | 39 | 51.3% (20 of 39). Misses are mostly questions that need a quantity column summed rather than rows counted |
+| Free-form text questions (`ifc_bench` + `opening_design`), graded against Stoa's prose answers by Gemma 4 | 836 | **37.0% correct, 54.4% correct or partly** (was 33.4% / 47.4% before the planner fixes; `python -m stoa_qa.eval_text`) |
 
 Gemini 3.5 Flash alone scored 83.4% on raster plans, but on only 25 plans before the free-tier quota ran out, so it is not part of the hybrid yet.
+
+**How the raster detector is fair.** Stoa's cubicasa5k answers are counts of CubiCasa5K's own `model.svg` annotations, and
+the label rules in `stoa_qa/cubicasa_rules.py` reproduce Stoa's answers on 98.4–100% of *train* plans for all 12 questions.
+The detector is trained on the train split only; score thresholds and the duplicate-overlap cut are picked per question on
+val; every number below is on the 387 held-out test plans.
+
+| Question (held-out test) | Network + rules | YOLO11s 1024 px (laptop) | YOLO11m 1280 px, 60 epochs (Modal H100) | **Both fused** |
+| --- | --- | --- | --- | --- |
+| Floors | 86% | 99.0% | 98.7% | **97.7%** |
+| WC rooms | 62% | 91.1% | 92.9% | **91.7%** |
+| Toilets | 71% | 91.7% | 93.3% | **92.5%** |
+| Saunas | 85% | 91.5% | 92.7% | **94.2%** |
+| Balconies | 60% | 92.0% | 92.0% | **92.0%** |
+| Kitchens | 83% | 90.6% | 89.1% | **93.0%** |
+| Bathrooms | 76% | 87.9% | 89.7% | **90.3%** |
+| Bedrooms | 65% | 83.7% | 87.4% | **87.9%** |
+| Sinks | 58% | 82.7% | 85.3% | **86.6%** |
+| Showers + bathtubs | 54% | 77.0% | 77.3% | **79.2%** |
+| Doors | 42% | 70.9% | 73.4% | **73.7%** |
+| Windows | 32% | 47.5% | 48.1% | **49.1%** |
+| **All** | **63.4%** | **82.3%** | 83.5% | **84.2%** |
+
+The Modal run was trained to its full 60 epochs (test mAP50 0.901, vs 0.876 for the laptop model); epoch 60 vs
+epoch 44 made no difference to exact counts (83.5% either way; val picked the final weights, 87.2% vs 87.1% fused).
+"Both fused" is `stoa_qa/cubicasa_ensemble.py`: boxes both models find are averaged, a box only one finds keeps half its
+score; chosen on val (mean exact-match 87.2% → 88.3%). Train: `modal_jobs/cubicasa_local.py` (laptop GPU) or `modal_jobs/cubicasa_cloud.py` (Modal; the 1280 px run stopped at epoch 44 of 60
+with val mAP50 0.896, already past its plateau). Windows are the weak spot. On val, 394 of 3,263 annotated windows are missed: 192 scored just under the threshold,
+118 merged with a neighbour, 115 not seen. Counting-time fixes (a second weaker threshold with a shape check, splitting long boxes,
+a learned count) gained nothing on val, so the next step is a better detector, not a better counter. A door/window detector on 2048 px tiles
+(`modal_jobs/cubicasa_tiles.py`) reached a higher mAP (0.915) but counted worse (doors 61%, windows 45%): boxes cut by tile borders
+are merged badly, so val does not pick it.
 
 Tests: `uv run pytest` runs 26 tests on synthetic drawings (no dataset or API key needed); `.github/workflows/ci.yml` runs them on every push.
 
@@ -153,12 +185,12 @@ model.ifc ──ifc_to_scene.py────▶ scene.json ─┘    click / ask 
 | --- | --- | --- | --- |
 | 3D comes from | extruding plan polygons (heights assumed, shown on screen) | the BIM model itself, via `web-ifc` (nothing assumed) | walls, rooms, doors, windows and fixtures predicted by the CubiCasa5K network, then extruded; labelled **APPROXIMATE** |
 | 2D comes from | the DXF vector drawing | a plan projection of the selected storey's 3D geometry, plus the dataset's rendered storey plan | the traced vectors, plus the original scan |
-| Facts come from | DXF layers + polygon geometry | IFC entities, spatial containment, quantity sets; room geometry when quantities are missing | network detections (rooms by type, icons by class) |
-| Accuracy on Stoa's questions | **99.2%** English (15,371 / 15,493); **99.49%** all languages via `stoa_qa` (37,392 / 37,584) | **98.9%** English (1,607 / 1,625); **99.90%** all languages via `stoa_qa` (3,059 / 3,062) | **50.2%** exact on held-out test plans (2,842 questions) |
+| Facts come from | the same DXF read as the answers (`stoa_qa/swiss.py`) | the same IFC read as the answers (`stoa_qa/ifc.py`) | network detections (rooms by type, icons by class) |
+| Accuracy on Stoa's questions | **99.49%** (37,392 / 37,584), all languages | **99.90%** (3,059 / 3,062), all languages | **50.2%** exact on held-out test plans (2,842 questions) |
 
 ### DXF accuracy
 
-**Measured on Stoa's own ground truth.** The 3D model is built from the same scene that answers the questions, so this accuracy is also how accurate the 3D model is:
+**Measured on Stoa's own ground truth.** One DXF reader (`stoa_qa/swiss.py`, ezdxf) feeds both the answers and the 3D scene, so the model shows the same rooms, areas and counts the answers use. All languages: **99.49%** (37,392 / 37,584). English questions, scored from the scene the viewer loads:
 
 | `swiss_dwellings`, 1,040 floor plans, English questions | Correct | Accuracy |
 | --- | --- | --- |
@@ -167,10 +199,10 @@ model.ifc ──ifc_to_scene.py────▶ scene.json ─┘    click / ask 
 | Doors | 1,040 / 1,040 | 100% |
 | Windows | 1,040 / 1,040 | 100% |
 | Total area of a room label | 1,017 / 1,017 | 100% |
-| Apartments | 1,026 / 1,040 | 98.7% |
-| Total indoor floor area | 1,009 / 1,040 | 97.0% |
-| Apartment net area | 1,798 / 1,875 | 95.9% |
-| **All** | **15,371 / 15,493** | **99.2%** |
+| Apartments | 1,040 / 1,040 | 100% |
+| Total indoor floor area | 1,012 / 1,040 | 97.3% |
+| Apartment net area | 1,817 / 1,875 | 96.9% |
+| **All** | **15,407 / 15,493** | **99.4%** |
 
 Fixture counts (WC, washbasin, bathtub, shower) and the German/French/Italian questions are answered by `stoa_qa/swiss.py`; see [Q&A engine](#qa-engine-stoa_qa-all-languages-).
 
@@ -180,16 +212,16 @@ Fixture counts (WC, washbasin, bathtub, shower) and the German/French/Italian qu
 
 | Question | Correct | Accuracy |
 | --- | --- | --- |
-| Net floor area of a named room on a storey | 1,179 / 1,183 | 99.7% |
+| Net floor area of a named room on a storey | 1,181 / 1,183 | 99.8% |
 | Doors / windows / walls / columns per storey | 121 / 121 | 100% |
 | Wall length, wall net side area, wall and slab net volume per storey | 133 / 133 | 100% |
 | Doors / windows / walls / beams / columns in the whole model | 85 / 85 | 100% |
-| Total room area per storey | 38 / 40 | 95.0% |
-| Stairs (per storey / whole model) | 47 / 50 | 94.0% |
-| Sanitary fixtures / unsupported wording | 4 / 13 | — |
-| **All** | **1,607 / 1,625** | **98.9%** |
+| Stairs (per storey / whole model) | 50 / 50 | 100% |
+| Sanitary fixtures and lights in the whole model | 13 / 13 | 100% |
+| Total room area per storey | 39 / 40 | 97.5% |
+| **All** | **1,622 / 1,625** | **99.8%** |
 
-About 730 of those rooms have **no stored area** in the IFC file. Their areas come from the room geometry: the profile of an extruded solid, or the plan-projected floor faces of a Brep. All of this uses only the Python standard library, no geometry kernel.
+About 730 of those rooms have **no stored area** in the IFC file. Their areas come from the room geometry (IfcOpenShell), the same fallback the answers use. One reader (`stoa_qa/ifc.py`) feeds both. All languages: **99.90%** (3,059 / 3,062). English questions, scored from the scene the viewer loads:
 
 ### Raster (scanned plans): pretrained CubiCasa5K network
 
@@ -199,17 +231,17 @@ About 730 of those rooms have **no stored area** in the IFC file. Their areas co
 
 | Question | Exact | ±1 | OpenCV baseline (exact) |
 | --- | --- | --- | --- |
-| Saunas | 85.3% | 100% | — |
-| Kitchens | 83.2% | 99.2% | — |
-| Toilets | 70.7% | 92.0% | — |
-| Bathrooms | 61.2% | 93.3% | — |
-| Balconies | 60.0% | 84.0% | — |
-| Bedrooms | 54.4% | 84.5% | — |
-| Sinks | 47.4% | 79.1% | — |
-| Doors | 33.5% | 68.0% | 4–10% |
-| Windows | 30.2% | 54.8% | 0–20% |
-| Showers + bathtubs | 6.3% | 80.3% | — |
-| **All** | **50.2%** | | |
+| Saunas | 85.3% | 100% | 92.7% | **94.2%** |
+| Kitchens | 83.2% | 99.2% | 89.1% | **93.0%** |
+| Toilets | 70.7% | 92.0% | 93.3% | **92.5%** |
+| Bathrooms | 61.2% | 93.3% | 89.7% | **90.3%** |
+| Balconies | 60.0% | 84.0% | 92.0% | **92.0%** |
+| Bedrooms | 54.4% | 84.5% | 87.4% | **87.9%** |
+| Sinks | 47.4% | 79.1% | 85.3% | **86.6%** |
+| Doors | 33.5% | 68.0% | 73.4% | **73.7%** |
+| Windows | 30.2% | 54.8% | 48.1% | **49.1%** |
+| Showers + bathtubs | 6.3% | 80.3% | 77.3% | **79.2%** |
+| **All** | **63.4%** | **82.3%** | 83.5% | **84.2%** |
 
 That's a large step up from the hand-tuned OpenCV baseline (`--engine opencv`), but far from the ~99% we get on DXF and IFC. Known gaps:
 - **Showers:** the network has no shower class, so "showers and bathtubs" is almost always undercounted.
@@ -220,9 +252,9 @@ That's a large step up from the hand-tuned OpenCV baseline (`--engine opencv`), 
 **Run it**
 
 ```bash
-# 1. convert drawings/models to scenes (DXF/IFC: Python standard library only)
-py -I blueprint3d/dxf_to_scene.py junction-dataset/junction-dataset/data/swiss_dwellings/site1000_bldg2082_floor9385.dxf
-py -I blueprint3d/ifc_to_scene.py junction-dataset/junction-dataset/data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc
+# 1. convert drawings/models to scenes (same ezdxf / ifcopenshell readers as the answers)
+python blueprint3d/dxf_to_scene.py junction-dataset/junction-dataset/data/swiss_dwellings/site1000_bldg2082_floor9385.dxf
+python blueprint3d/ifc_to_scene.py junction-dataset/junction-dataset/data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc
 #    raster needs the venv + CubiCasa5K weights (see "Local setup" below); --engine opencv for the baseline
 .venv/Scripts/python -W ignore blueprint3d/raster_to_scene.py junction-dataset/junction-dataset/data/cubicasa5k/high_quality-10004.png
 
@@ -231,8 +263,8 @@ py -m http.server 8765
 #    → http://localhost:8765/blueprint3d/viewer/
 
 # 3. reproduce the accuracy tables
-py -I blueprint3d/eval_swiss.py
-py -I blueprint3d/eval_ifc.py
+python blueprint3d/eval_swiss.py
+python blueprint3d/eval_ifc.py
 .venv/Scripts/python -W ignore blueprint3d/eval_cubicasa_model.py --split test   # network, held-out plans
 .venv/Scripts/python blueprint3d/eval_raster.py --per-style 40                     # OpenCV baseline
 ```
@@ -252,15 +284,15 @@ How much work 3D takes depends on the format:
 
 | Input | 2D → 3D route | Accuracy | Effort |
 | --- | --- | --- | --- |
-| **IFC** | ✅ **Built**: `web-ifc` streams the real geometry into three.js; `ifc_to_scene.py` supplies storeys, rooms, quantities | Exact (98.9% on ground truth) | Done |
-| **DXF** (swiss_dwellings, opening_design) | ✅ **Built**: read the `WALL` / `ROOM_OUTLINE` / `DOOR` / `WINDOW` / `UNIT_OUTLINE` layers, extrude in three.js, export `.glb` | Exact (99.2% on ground truth) | Done |
+| **IFC** | ✅ **Built**: `web-ifc` streams the real geometry into three.js; `ifc_to_scene.py` supplies storeys, rooms, quantities from `stoa_qa/ifc.py` | Exact (99.90% on ground truth) | Done |
+| **DXF** (swiss_dwellings, opening_design) | ✅ **Built**: `stoa_qa/swiss.py` reads the `WALL` / `ROOM_OUTLINE` / `DOOR` / `WINDOW` / `UNIT_OUTLINE` layers; three.js extrudes them and exports `.glb` | Exact (99.49% on ground truth) | Done |
 | **Raster PNG/JPG** (cubicasa5k, scans) | ✅ **Built**: CubiCasa5K network → walls, typed rooms, doors, windows, fixtures → extrude (`raster_to_scene.py`; `--engine opencv` baseline) | Approximate, labelled as such; 50.2% on held-out test plans | Next: OCR of room labels, shower class |
 
 Rules for 3D:
 
 - **Every 3D object keeps the ID of its 2D source** (room polygon, wall segment, IFC GlobalId). That shared ID is what links the two views.
 - **Heights we assume are shown in the UI** (e.g. "storey height assumed 2.7 m"). A 2D plan alone doesn't give you volume, so we never present an assumed height as fact.
-- **Blender is optional.** The live pipeline is plain Python (no dependencies) plus three.js in the browser, so it runs anywhere. Click **Export .glb**, then in Blender use *File → Import → glTF* for polished renders and the demo video. Element IDs are kept as object names.
+- **Blender is optional.** DXF and IFC scenes use the same Python readers as the answers (ezdxf, shapely, ifcopenshell); the viewer itself is three.js in the browser. Click **Export .glb**, then in Blender use *File → Import → glTF* for polished renders and the demo video. Element IDs are kept as object names.
 - **Browser viewer:** three.js for all three formats, with web-ifc streaming native IFC geometry.
 
 Next steps for 3D, in priority order:
@@ -310,7 +342,7 @@ UI: question box │ 2D viewer with highlights │ 3D viewer with linked highlig
 | 3D viewer | three.js + web-ifc (built) | Extruded DXF plans and native IFC in the browser |
 | API & processing | Python + FastAPI | PDF, CAD, CV and geometry tooling |
 | Vector/CAD | `ezdxf`, `shapely`, PyMuPDF | Exact geometry, text and scale from DXF/PDF |
-| BIM | Own stdlib IFC/STEP reader (`blueprint3d`, viewer); IfcOpenShell (`stoa_qa`, answers) | IFC storeys, spaces, quantities, room geometry areas, unit scaling |
+| BIM | IfcOpenShell (`stoa_qa/ifc.py`), shared by answers and the 3D scene | IFC storeys, spaces, quantities, room geometry areas, unit scaling |
 | 3D generation | `trimesh` (+ Blender headless for renders) | 2D polygons → 3D `.glb` |
 | CV | YOLO-style detector / segmentation model fine-tuned on CubiCasa labels | Door/window/room counts on raster plans |
 | OCR | PaddleOCR / Tesseract (+ LLM vision fallback) | Multilingual labels, schedules, title blocks |
@@ -351,7 +383,8 @@ The dataset comes with an official question set, so we measure ourselves on it f
 - [x] Fixture symbol classification (WC, washbasin, bathtub, shower) on the DXF `FIXTURE` layer (99.5–100%).
 - [x] Multilingual questions without an LLM (`stoa_qa/lang.py`, 10 languages).
 - [x] Raster path (cubicasa5k), first version: pretrained network + Gemma 4 hybrid, 65.9% on held-out plans (network alone 50.2%).
-- [ ] Raster path, next: detector trained on CubiCasa annotations for doors, windows and fixtures (label extraction and training jobs are in `modal_jobs/`; training needs a GPU).
+- [x] Raster detectors trained on CubiCasa's train-split annotations (13 classes, all 12 questions), two models fused: 84.2% on held-out test plans.
+- [ ] Raster, next: windows (48%): find why whole groups of windows are missed; fix tile-border merging for the tiled detector.
 - [x] Vision baselines on held-out plans: Gemma 4 on all 387 plans; Gemini 3.5 Flash on 25 (free-tier quota).
 - [x] One answer API (`/api/ask`): every format shares the same answers and evidence; the 3D viewer uses it too.
 - [x] Free-form questions: Gemma 4 plans a query over the drawing's fact tables (`stoa_qa/planner.py`); covers many `ifc_bench` questions.
@@ -394,7 +427,7 @@ In under two minutes a judge asks a real question (in English or Finnish) and:
 
 ```bash
 # dataset unzipped to junction-dataset/junction-dataset/... (see SETUP.md step 2), then:
-py -I blueprint3d/build_demo_scenes.py      # DXF + IFC scenes, standard library only
+python blueprint3d/build_demo_scenes.py     # DXF + IFC scenes, same readers as the answers
 py -m http.server 8765                      # open http://localhost:8765/blueprint3d/viewer/
 ```
 
