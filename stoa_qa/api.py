@@ -34,6 +34,16 @@ SCENES = REPO / "blueprint3d" / "viewer" / "scenes"
 app = FastAPI(title="OQVAR · Make Blueprints Talk", version="0.2")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 app.add_middleware(GZipMiddleware, minimum_size=2000)
+
+
+@app.middleware("http")
+async def revalidate_pages(request, call_next):
+    """Pages and their scripts revalidate on every load (ETag makes it cheap), so an edit never mixes old and new files."""
+    response = await call_next(request)
+    path = request.url.path
+    if path in ("/", "/app") or path.startswith("/web/"):
+        response.headers.setdefault("Cache-Control", "no-cache")
+    return response
 _scene_lock = threading.Lock()
 
 

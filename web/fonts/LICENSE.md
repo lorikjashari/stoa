@@ -1,6 +1,6 @@
 # Fonts
 
-Self-hosted latin subsets, downloaded from Google Fonts. All four families are licensed under the
+Self-hosted latin subsets, downloaded from Google Fonts. All five families are licensed under the
 SIL Open Font License 1.1 (https://openfontlicense.org/open-font-license-official-text/).
 
 | Family | Copyright |
@@ -9,3 +9,4 @@ SIL Open Font License 1.1 (https://openfontlicense.org/open-font-license-officia
 | IBM Plex Sans | Copyright © 2017 IBM Corp. with Reserved Font Name "Plex" |
 | IBM Plex Mono | Copyright © 2017 IBM Corp. with Reserved Font Name "Plex" |
 | Sora | Copyright 2019 The Sora Project Authors (https://github.com/sora-xor/sora-font) |
+| Unbounded | Copyright 2022 The Unbounded Project Authors (https://github.com/w3f/unbounded) |

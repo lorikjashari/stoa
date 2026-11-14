@@ -2,318 +2,403 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script>document.documentElement.className = location.hash ? "js" : "js is-loading";</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OQVAR — Blueprint Q&A that shows its work</title>
-<meta name="description" content="OQVAR answers questions about construction drawings and BIM models in any language, and marks the exact source on the sheet — so an engineer can verify every answer in seconds.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#08090b">
+<title>OQVAR — ask the drawing, check the answer</title>
+<meta name="description" content="OQVAR answers questions about construction drawings and BIM models in any language, and marks the exact place on the sheet each answer came from.">
 <link rel="icon" type="image/svg+xml" href="/web/favicon.svg">
+<link rel="preload" href="/web/oqvar-sdf.png" as="image">
+<link rel="preload" href="/web/fonts/unbounded-400-800-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/web/fonts/fonts.css">
-<link rel="stylesheet" href="/web/landing.css">
+<link rel="stylesheet" href="/web/landing.css?v=fe4816e5">
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="oq-mark" viewBox="467 465 1114 1117"><path fill="currentColor" fill-rule="evenodd" d="M467.4 1566.3C474.4 1404.8 503.4 1252.3 557.4 1092.5C589.9 996.2 632.2 902.4 683.3 813.0C706.2 772.9 741.6 719.7 765.4 689.5C815.5 625.9 867.9 576.2 922.0 540.8C984.5 499.9 1050.8 475.4 1121.0 467.4C1138.8 465.4 1186.0 465.0 1203.0 466.8C1221.0 468.7 1243.5 472.7 1260.2 477.0C1274.4 480.6 1298.5 488.1 1305.5 491.0C1311.5 493.6 1314.6 494.9 1321.0 497.5C1340.4 505.6 1370.6 522.5 1390.5 536.5C1449.8 578.0 1496.2 632.4 1530.1 700.0C1541.6 723.0 1548.0 738.4 1555.6 761.5C1582.9 844.8 1588.2 933.1 1571.0 1020.0C1557.1 1089.9 1531.8 1157.8 1500.1 1210.3C1478.0 1246.9 1452.1 1280.1 1423.1 1309.0C1404.4 1327.6 1390.0 1339.8 1368.4 1355.3C1344.9 1372.2 1335.4 1378.1 1302.0 1396.5C1293.5 1401.1 1293.5 1401.2 1298.0 1400.6C1307.6 1399.3 1340.4 1390.6 1358.7 1384.5C1402.4 1369.9 1447.6 1346.3 1484.8 1318.6L1495.0 1311.0L1538.0 1311.0L1581.0 1311.0L1581.0 1315.2C1581.0 1320.8 1579.4 1334.9 1577.4 1347.5C1563.7 1434.2 1504.8 1513.1 1424.5 1552.5C1395.3 1566.8 1375.1 1573.1 1338.0 1579.8C1329.2 1581.3 1297.0 1581.5 897.6 1581.7L466.7 1582.0L467.4 1566.3Z M899.5 1310.0C918.3 1308.8 947.6 1305.8 961.5 1303.4C975.4 1301.1 1010.0 1293.2 1025.2 1288.9C1051.4 1281.5 1089.2 1266.6 1114.7 1253.6C1199.4 1210.5 1272.4 1143.3 1335.2 1050.5C1371.2 997.4 1406.2 929.5 1436.1 854.7C1444.0 834.9 1450.3 818.1 1462.0 785.0C1465.2 775.9 1468.2 767.7 1468.5 766.8C1469.3 764.7 1464.8 761.7 1443.4 749.9C1410.6 731.9 1392.9 724.2 1368.5 717.1C1350.8 712.0 1340.3 709.7 1322.0 706.9C1302.6 703.9 1258.5 703.6 1239.0 706.3C1157.9 717.6 1088.0 752.9 1025.7 814.0C963.9 874.4 914.8 957.0 876.1 1065.2C869.2 1084.5 868.2 1087.5 861.0 1111.0C849.6 1148.1 836.2 1204.9 828.5 1248.5C824.9 1268.5 819.1 1309.3 819.7 1310.2C820.3 1311.4 879.7 1311.1 899.5 1310.0Z"/><path fill="var(--eye, currentColor)" d="M1225.2 1061.8C1225.0 1036.9 1224.5 1011.8 1223.9 1006.0C1218.7 949.9 1198.3 906.2 1162.4 873.9C1152.4 865.0 1135.0 853.3 1123.8 848.0C1113.9 843.4 1094.3 836.7 1085.2 834.9C1081.8 834.2 1079.1 833.3 1079.2 832.9C1079.7 831.7 1099.0 817.0 1109.9 809.5C1151.1 781.4 1199.3 762.7 1246.5 756.5C1262.0 754.5 1293.6 754.5 1309.0 756.5C1331.8 759.5 1350.9 764.4 1372.3 772.6C1385.2 777.6 1403.9 786.7 1404.5 788.2C1404.8 788.9 1403.0 795.1 1400.6 802.0C1365.6 900.8 1318.5 991.0 1266.0 1059.4C1259.7 1067.6 1238.2 1093.3 1231.3 1100.8L1225.5 1107.1L1225.2 1061.8Z"/></symbol><symbol id="oq-wm" viewBox="0 0 4792 750" overflow="visible"><path fill="currentColor" d="M482 766Q349 766 248.5 717.0Q148 668 92.5 580.0Q37 492 37 375Q37 258 92.5 170.0Q148 82 248.5 33.0Q349 -16 482 -16Q616 -16 716.0 33.0Q816 82 872.0 170.0Q928 258 928 375Q928 492 872.0 580.0Q816 668 716.0 717.0Q616 766 482 766ZM482 581Q555 581 608.0 556.0Q661 531 689.5 485.0Q718 439 718 375Q718 311 689.5 265.0Q661 219 608.0 194.0Q555 169 482 169Q410 169 357.0 194.0Q304 219 275.0 265.0Q246 311 246 375Q246 439 275.0 485.0Q304 531 357.0 556.0Q410 581 482 581ZM1348.0 445H1596.0L1922.0 806H1669.0ZM1477.0 766Q1344.0 766 1243.5 717.0Q1143.0 668 1087.5 580.0Q1032.0 492 1032.0 375Q1032.0 258 1087.5 170.0Q1143.0 82 1243.5 33.0Q1344.0 -16 1477.0 -16Q1611.0 -16 1711.0 33.0Q1811.0 82 1867.0 170.0Q1923.0 258 1923.0 375Q1923.0 492 1867.0 580.0Q1811.0 668 1711.0 717.0Q1611.0 766 1477.0 766ZM1477.0 581Q1550.0 581 1603.0 556.0Q1656.0 531 1684.5 485.0Q1713.0 439 1713.0 375Q1713.0 311 1684.5 265.0Q1656.0 219 1603.0 194.0Q1550.0 169 1477.0 169Q1405.0 169 1352.0 194.0Q1299.0 219 1270.0 265.0Q1241.0 311 1241.0 375Q1241.0 439 1270.0 485.0Q1299.0 531 1352.0 556.0Q1405.0 581 1477.0 581ZM2504.0 657H2416.0L2705.0 0H2924.0L2575.0 750H2340.0L1991.0 0H2213.0ZM3171.0 606V439H3688.0V606ZM3570.0 0 3911.0 750H3690.0L3404.0 88H3464.0L3177.0 750H2956.0L3297.0 0ZM4155.0 328H4428.0Q4478.0 328 4506.0 305.0Q4534.0 282 4534.0 241Q4534.0 199 4506.0 176.5Q4478.0 154 4428.0 154H4126.0L4219.0 55V750H4012.0V0H4457.0Q4543.0 0 4607.0 30.5Q4671.0 61 4707.0 114.5Q4743.0 168 4743.0 241Q4743.0 312 4707.0 366.0Q4671.0 420 4607.0 450.0Q4543.0 480 4457.0 480H4155.0ZM4267.0 399H4500.0L4769.0 750H4529.0Z"/></symbol></svg>
+<a class="skip" href="#drawings">Skip to content</a>
 
-<!-- SVG sprite -->
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="oq-mark" viewBox="467 465 1114 1117">
-    <path fill="currentColor" fill-rule="evenodd" d="M467.4 1566.3C474.4 1404.8 503.4 1252.3 557.4 1092.5C589.9 996.2 632.2 902.4 683.3 813.0C706.2 772.9 741.6 719.7 765.4 689.5C815.5 625.9 867.9 576.2 922.0 540.8C984.5 499.9 1050.8 475.4 1121.0 467.4C1138.8 465.4 1186.0 465.0 1203.0 466.8C1221.0 468.7 1243.5 472.7 1260.2 477.0C1274.4 480.6 1298.5 488.1 1305.5 491.0C1311.5 493.6 1314.6 494.9 1321.0 497.5C1340.4 505.6 1370.6 522.5 1390.5 536.5C1449.8 578.0 1496.2 632.4 1530.1 700.0C1541.6 723.0 1548.0 738.4 1555.6 761.5C1582.9 844.8 1588.2 933.1 1571.0 1020.0C1557.1 1089.9 1531.8 1157.8 1500.1 1210.3C1478.0 1246.9 1452.1 1280.1 1423.1 1309.0C1404.4 1327.6 1390.0 1339.8 1368.4 1355.3C1344.9 1372.2 1335.4 1378.1 1302.0 1396.5C1293.5 1401.1 1293.5 1401.2 1298.0 1400.6C1307.6 1399.3 1340.4 1390.6 1358.7 1384.5C1402.4 1369.9 1447.6 1346.3 1484.8 1318.6L1495.0 1311.0L1538.0 1311.0L1581.0 1311.0L1581.0 1315.2C1581.0 1320.8 1579.4 1334.9 1577.4 1347.5C1563.7 1434.2 1504.8 1513.1 1424.5 1552.5C1395.3 1566.8 1375.1 1573.1 1338.0 1579.8C1329.2 1581.3 1297.0 1581.5 897.6 1581.7L466.7 1582.0L467.4 1566.3Z M899.5 1310.0C918.3 1308.8 947.6 1305.8 961.5 1303.4C975.4 1301.1 1010.0 1293.2 1025.2 1288.9C1051.4 1281.5 1089.2 1266.6 1114.7 1253.6C1199.4 1210.5 1272.4 1143.3 1335.2 1050.5C1371.2 997.4 1406.2 929.5 1436.1 854.7C1444.0 834.9 1450.3 818.1 1462.0 785.0C1465.2 775.9 1468.2 767.7 1468.5 766.8C1469.3 764.7 1464.8 761.7 1443.4 749.9C1410.6 731.9 1392.9 724.2 1368.5 717.1C1350.8 712.0 1340.3 709.7 1322.0 706.9C1302.6 703.9 1258.5 703.6 1239.0 706.3C1157.9 717.6 1088.0 752.9 1025.7 814.0C963.9 874.4 914.8 957.0 876.1 1065.2C869.2 1084.5 868.2 1087.5 861.0 1111.0C849.6 1148.1 836.2 1204.9 828.5 1248.5C824.9 1268.5 819.1 1309.3 819.7 1310.2C820.3 1311.4 879.7 1311.1 899.5 1310.0Z"/>
-    <path fill="var(--eye,currentColor)" d="M1225.2 1061.8C1225.0 1036.9 1224.5 1011.8 1223.9 1006.0C1218.7 949.9 1198.3 906.2 1162.4 873.9C1152.4 865.0 1135.0 853.3 1123.8 848.0C1113.9 843.4 1094.3 836.7 1085.2 834.9C1081.8 834.2 1079.1 833.3 1079.2 832.9C1079.7 831.7 1099.0 817.0 1109.9 809.5C1151.1 781.4 1199.3 762.7 1246.5 756.5C1262.0 754.5 1293.6 754.5 1309.0 756.5C1331.8 759.5 1350.9 764.4 1372.3 772.6C1385.2 777.6 1403.9 786.7 1404.5 788.2C1404.8 788.9 1403.0 795.1 1400.6 802.0C1365.6 900.8 1318.5 991.0 1266.0 1059.4C1259.7 1067.6 1238.2 1093.3 1231.3 1100.8L1225.5 1107.1L1225.2 1061.8Z"/>
-  </symbol>
-  <symbol id="oq-wm" viewBox="0 0 4792 750" overflow="visible">
-    <path fill="currentColor" d="M482 766Q349 766 248.5 717.0Q148 668 92.5 580.0Q37 492 37 375Q37 258 92.5 170.0Q148 82 248.5 33.0Q349 -16 482 -16Q616 -16 716.0 33.0Q816 82 872.0 170.0Q928 258 928 375Q928 492 872.0 580.0Q816 668 716.0 717.0Q616 766 482 766ZM482 581Q555 581 608.0 556.0Q661 531 689.5 485.0Q718 439 718 375Q718 311 689.5 265.0Q661 219 608.0 194.0Q555 169 482 169Q410 169 357.0 194.0Q304 219 275.0 265.0Q246 311 246 375Q246 439 275.0 485.0Q304 531 357.0 556.0Q410 581 482 581ZM1348.0 445H1596.0L1922.0 806H1669.0ZM1477.0 766Q1344.0 766 1243.5 717.0Q1143.0 668 1087.5 580.0Q1032.0 492 1032.0 375Q1032.0 258 1087.5 170.0Q1143.0 82 1243.5 33.0Q1344.0 -16 1477.0 -16Q1611.0 -16 1711.0 33.0Q1811.0 82 1867.0 170.0Q1923.0 258 1923.0 375Q1923.0 492 1867.0 580.0Q1811.0 668 1711.0 717.0Q1611.0 766 1477.0 766ZM1477.0 581Q1550.0 581 1603.0 556.0Q1656.0 531 1684.5 485.0Q1713.0 439 1713.0 375Q1713.0 311 1684.5 265.0Q1656.0 219 1603.0 194.0Q1550.0 169 1477.0 169Q1405.0 169 1352.0 194.0Q1299.0 219 1270.0 265.0Q1241.0 311 1241.0 375Q1241.0 439 1270.0 485.0Q1299.0 531 1352.0 556.0Q1405.0 581 1477.0 581ZM2504.0 657H2416.0L2705.0 0H2924.0L2575.0 750H2340.0L1991.0 0H2213.0ZM3171.0 606V439H3688.0V606ZM3570.0 0 3911.0 750H3690.0L3404.0 88H3464.0L3177.0 750H2956.0L3297.0 0ZM4155.0 328H4428.0Q4478.0 328 4506.0 305.0Q4534.0 282 4534.0 241Q4534.0 199 4506.0 176.5Q4478.0 154 4428.0 154H4126.0L4219.0 55V750H4012.0V0H4457.0Q4543.0 0 4607.0 30.5Q4671.0 61 4707.0 114.5Q4743.0 168 4743.0 241Q4743.0 312 4707.0 366.0Q4671.0 420 4607.0 450.0Q4543.0 480 4457.0 480H4155.0ZM4267.0 399H4500.0L4769.0 750H4529.0Z"/>
-  </symbol>
-</svg>
-
-<a class="skip" href="#main">Skip to content</a>
-
-<!-- NAV -->
 <header class="nav">
-  <div class="nav-inner">
+  <div class="nav-in">
     <a class="nav-brand" href="/" aria-label="OQVAR home">
-      <svg class="nav-mark" viewBox="0 0 1114 1117" aria-hidden="true"><use href="#oq-mark"/></svg>
-      <svg class="nav-wm" viewBox="0 0 4792 750" aria-hidden="true"><use href="#oq-wm"/></svg>
+      <svg class="lk-mark" viewBox="0 0 1114 1117" aria-hidden="true"><use href="#oq-mark"/></svg>
+      <svg class="lk-wm" viewBox="0 0 4792 750" aria-hidden="true"><use href="#oq-wm"/></svg>
     </a>
     <nav class="nav-links" aria-label="Sections">
-      <a href="#how">How it works</a>
+      <a href="#drawings">Drawings</a>
+      <a href="#why">Why OQVAR</a>
+      <a href="#engines">How it answers</a>
       <a href="#benchmark">Benchmark</a>
       <a href="#languages">Languages</a>
     </nav>
-    <a class="nav-cta" href="/app">Open app <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M2 10 10 2M4 2h6v6" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></a>
+    <a class="btn btn-primary btn-sm" href="/app">Explore<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
   </div>
 </header>
 
 <main id="main">
 
-<!-- HERO -->
-<section class="hero">
-  <!-- ambient gradient mesh -->
-  <div class="hero-mesh" aria-hidden="true">
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-    <div class="orb orb-3"></div>
-  </div>
+<!-- ================================================================ specimen hero: scroll is the timeline -->
+<section class="specimen" id="top" aria-labelledby="hero-title">
+  <h1 id="hero-title" class="sr">OQVAR — ask the drawing, check the answer</h1>
+  <div class="stage" id="stage">
+    <div class="st-vignette" aria-hidden="true"></div>
+    <div class="st-glow" id="glow" aria-hidden="true"></div>
+    <canvas class="st-canvas" id="logo3d" aria-hidden="true"></canvas>
+    <svg class="st-fallback" id="logo2d" viewBox="0 0 1114 1117" aria-hidden="true"><use href="#oq-mark"/></svg>
 
-  <div class="hero-inner">
-    <!-- left: copy -->
-    <div class="hero-copy">
-      <div class="badge">
-        <span class="badge-pulse"></span>
-        Junction 2026 · Make Blueprints Talk
+    <!-- loader: the mark assembles while the page gets ready -->
+    <div class="loader" id="loader" aria-hidden="true">
+      <svg class="ld-mark" id="ld-mark" viewBox="0 0 1114 1117"><use href="#oq-mark"/></svg>
+      <div class="ld-top"><span>OQVAR</span><span>Blueprint Q&amp;A</span><span id="ld-step">Tracing the mark</span></div>
+      <div class="ld-bottom">
+        <div class="ld-count"><span id="ld-n">00</span><small>%</small></div>
+        <div class="ld-bar"><i id="ld-bar"></i></div>
       </div>
-      <h1>Blueprint Q&amp;A<br><span class="grad-text">that shows its work.</span></h1>
-      <p class="hero-sub">Ask a question about any construction drawing or BIM model. Get the exact answer — with every counted item highlighted on the sheet, so you can verify it in seconds.</p>
-      <div class="hero-actions">
-        <a class="btn-primary" href="/app">Open the app <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><path d="M2 10 10 2M4 2h6v6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></a>
-        <a class="btn-ghost" href="#benchmark">See benchmark</a>
-      </div>
-      <div class="hero-stats">
-        <div class="hstat"><strong>99.49%</strong><span>CAD accuracy</span></div>
-        <div class="hstat-div"></div>
-        <div class="hstat"><strong>99.90%</strong><span>BIM accuracy</span></div>
-        <div class="hstat-div"></div>
-        <div class="hstat"><strong>11</strong><span>Languages</span></div>
-        <div class="hstat-div"></div>
-        <div class="hstat"><strong>40k+</strong><span>Questions tested</span></div>
-      </div>
-      <p class="live" id="live" hidden><i aria-hidden="true"></i>Live register: <b id="live-d"></b> drawings · <b id="live-q"></b> questions</p>
     </div>
 
-    <!-- right: interactive demo -->
-    <div class="hero-demo">
-      <div class="product-frame">
-        <div class="product-chrome">
-          <div class="chrome-dots"><span></span><span></span><span></span></div>
-          <span class="chrome-label">OQVAR · Level 2 — A-102 · 1:100</span>
+    <!-- 0 · cover -->
+    <div class="fr" aria-hidden="true">
+      <div class="cv-top">
+        <div class="cv-title" data-sc="0" data-fx="clip" data-d="0">OQVAR<br>Blueprint Q&amp;A</div>
+        <p class="cv-desc hide-md" data-sc="0" data-fx="rise" data-d=".2">OQVAR reads construction drawings and BIM models, answers questions in any language, and marks the exact place on the sheet each answer came from, so an engineer can check it in seconds.</p>
+        <ul class="cv-specs hide-md" data-sc="0" data-fx="rise" data-d=".35">
+          <li>99.49% on CAD floor plans</li>
+          <li>99.90% on BIM models</li>
+          <li>11 languages</li>
+          <li>0 LLM tokens for most answers</li>
+          <li id="cv-live">Every answer shown on the sheet</li>
+        </ul>
+        <div class="cv-right hide-sm" data-sc="0" data-fx="clip" data-d=".5">Ask<br>Check<br>Build</div>
+      </div>
+      <div class="cv-word" id="word">
+        <span class="cv-sup" data-sc="0" data-fx="rise" data-d=".6">Ask the drawing</span>
+        <div class="cv-letters"><span data-ch><span class="ch" style="--k:0">O</span></span><span data-ch><span class="ch" style="--k:1">Q</span></span><span data-ch><span class="ch" style="--k:2">V</span></span><span data-ch><span class="ch" style="--k:3">A</span></span><span data-ch><span class="ch" style="--k:4">R</span></span></div>
+      </div>
+      <div class="cv-bot">
+        <div class="cv-sign" data-sc="0" data-fx="rise" data-d=".3">
+          <svg class="cv-mark" viewBox="0 0 1114 1117"><use href="#oq-mark"/></svg>
+          <span class="cv-year">2026</span>
+          <span class="cv-made">Built for<br>Junction 2026</span>
         </div>
-        <div class="product-body" id="demo">
-          <div class="asks" role="group" aria-label="Try a question on the sample sheet">
-            <button type="button" data-q="doors" aria-pressed="true"><span class="lang-pill">EN</span>How many doors?</button>
-            <button type="button" data-q="sauna" aria-pressed="false"><span class="lang-pill">FI</span>Kuinka monta saunaa?</button>
-            <button type="button" data-q="windows" aria-pressed="false"><span class="lang-pill">DE</span>Wie viele Fenster?</button>
+        <div class="cv-cols hide-sm" data-sc="0" data-fx="rise" data-d=".5">
+          <span>OQVAR<br>Blueprint Q&amp;A</span><span>Compute<br>don’t guess</span><span>Built for<br>Stoa challenge</span><span>Scroll<br>to begin ↓</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1 · the mark -->
+    <div class="fr" aria-hidden="true">
+      <div class="mk-cap" data-sc="1" data-fx="rise" data-d=".55"><em>02</em> — The mark</div>
+      <p class="mk-note" data-sc="1" data-fx="rise" data-d=".7">A speech bubble with an eye in it.<br>Ask the question. Look at the answer.</p>
+    </div>
+
+    <!-- 2 · ask -->
+    <div class="fr" aria-hidden="true">
+      <div class="ask">
+        <div class="big"><div data-sc="2" data-fx="clip" data-d="0">Ask the</div><div data-sc="2" data-fx="clip" data-d=".14">drawing.</div></div>
+        <ul class="ask-qs" data-sc="2" data-fx="rise" data-d=".4">
+          <li><b>EN</b>What is the net area of the kitchen?</li>
+          <li><b>FI</b>Kuinka monta saunaa pohjapiirustuksessa on?</li>
+          <li><b>DE</b>Wie viele Fenster enthält das Modell?</li>
+          <li><b>FR</b>Combien de portes sont dessinées sur ce plan ?</li>
+          <li><b>ET</b>Mitu ust on mudelis?</li>
+        </ul>
+      </div>
+      <div class="fr-cap" data-sc="2" data-fx="rise" data-d=".6"><em>03</em> — In your language. Plans, models, scans and schedules.</div>
+    </div>
+
+    <!-- 3 · check -->
+    <div class="fr" aria-hidden="true">
+      <div class="chk">
+        <div class="big"><div data-sc="3" data-fx="clip" data-d="0">Check the</div><div data-sc="3" data-fx="clip" data-d=".14">answer.</div></div>
+        <ol class="pins" data-sc="3" data-fx="rise" data-d=".32"><li>1</li><li>2</li><li>3</li><li>4</li><li>5</li><li>6</li><li>7</li></ol>
+        <p class="chk-p" data-sc="3" data-fx="rise" data-d=".45">Every counted door, room or schedule row is outlined and numbered where it is on the sheet. The answer says which engine answered and what it cost.</p>
+      </div>
+      <div class="fr-cap fr-cap-r" data-sc="3" data-fx="rise" data-d=".6"><em>04</em> — Compute, don’t guess.</div>
+    </div>
+
+    <!-- 4 · measured -->
+    <div class="fr">
+      <div class="ms">
+        <div class="ms-l" data-sc="4" data-fx="fade" data-d=".2" aria-hidden="true">CAD floor plans · 37,584 questions</div>
+        <div class="ms-n" data-sc="4" data-fx="clip" data-d="0" aria-hidden="true">99.49<small>%</small></div>
+        <div class="ms-row" data-sc="4" data-fx="rise" data-d=".4" aria-hidden="true"><span><b>99.90%</b>BIM models</span><span><b>11</b>languages</span><span><b>0</b>LLM tokens, most answers</span></div>
+      </div>
+      <div class="ms-bar" data-sc="4" data-fx="rise" data-d=".7">
+        <a class="ms-link" href="/app">Explore the app<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+        <svg class="ms-mark" viewBox="0 0 1114 1117" aria-hidden="true"><use href="#oq-mark"/></svg>
+        <a class="ms-link" href="#drawings">The details ↓</a>
+      </div>
+    </div>
+
+    <nav class="st-nav hide-sm" id="st-nav" aria-label="Hero frames">
+      <button type="button" data-go="0"><span class="lab">01 Cover</span><span class="tick"></span></button>
+      <button type="button" data-go="1"><span class="lab">02 Mark</span><span class="tick"></span></button>
+      <button type="button" data-go="2"><span class="lab">03 Ask</span><span class="tick"></span></button>
+      <button type="button" data-go="3"><span class="lab">04 Check</span><span class="tick"></span></button>
+      <button type="button" data-go="4"><span class="lab">05 Measured</span><span class="tick"></span></button>
+    </nav>
+
+    <svg class="st-grain" aria-hidden="true" width="100%" height="100%"><filter id="st-grain"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .55 0"/></filter><rect width="100%" height="100%" filter="url(#st-grain)"/></svg>
+  </div>
+</section>
+
+<!-- ================================================================ drawings: tabbed showcase -->
+<section class="sec showcase" id="drawings" aria-labelledby="dt-title">
+  <div class="wrap">
+    <div class="eyebrow">What it reads / four kinds of drawing</div>
+    <header class="head">
+      <h2 id="dt-title" class="title">One question. Every kind of drawing.</h2>
+      <div class="intro">
+        <p class="desc">CAD plans, BIM models, scanned sheets and PDF schedules. Each question goes to the engine that can answer it exactly, and each answer points back to the drawing.</p>
+        <span class="count">Drawing types <span aria-hidden="true">/</span><strong>04 sources</strong></span>
+      </div>
+    </header>
+
+    <div class="tabs" role="tablist" aria-label="Drawing types">
+      <button type="button" role="tab" id="tab-cad" aria-controls="panel-cad" aria-selected="true" tabindex="0"><span class="tab-n" aria-hidden="true">01</span>Floor plans</button>
+      <button type="button" role="tab" id="tab-bim" aria-controls="panel-bim" aria-selected="false" tabindex="-1"><span class="tab-n" aria-hidden="true">02</span>BIM models</button>
+      <button type="button" role="tab" id="tab-scan" aria-controls="panel-scan" aria-selected="false" tabindex="-1"><span class="tab-n" aria-hidden="true">03</span>Scanned plans</button>
+      <button type="button" role="tab" id="tab-sched" aria-controls="panel-sched" aria-selected="false" tabindex="-1"><span class="tab-n" aria-hidden="true">04</span>Schedules</button>
+    </div>
+
+    <article class="panel" id="panel-cad" role="tabpanel" aria-labelledby="tab-cad" tabindex="0">
+      <div class="viz">
+        <div class="viz-label"><strong>A-102.dxf</strong><span>Illustration / 01</span></div>
+        <div class="viz-win">
+          <div class="win-head" aria-hidden="true"><i></i><i></i><i></i><span>Net area · kitchen</span></div>
+          <div class="viz-body"><svg class="plan" viewBox="0 0 800 560" role="img" aria-label="Sample floor plan with the kitchen outline traced and its area, 18.6 square metres, labelled"><defs><pattern id="pc-pg" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="rgba(31,79,168,.08)"/></pattern></defs><rect width="800" height="560" class="paper"/><rect width="800" height="560" fill="url(#pc-pg)"/><g class="mk" style="--i:0"><rect class="hl room" x="426" y="46" width="328" height="188"/></g><g><g class="fx"><rect x="440" y="52" width="300" height="34"/><circle cx="480" cy="69" r="10"/><circle cx="510" cy="69" r="10"/><rect x="560" y="56" width="44" height="26" rx="3"/><rect x="704" y="250" width="44" height="80" rx="18"/><rect x="630" y="250" width="40" height="30" rx="10"/><path d="M632 396H752M632 420H752M632 444H752"/><rect x="440" y="440" width="120" height="70"/><rect x="60" y="440" width="110" height="70"/><rect x="70" y="70" width="150" height="70" rx="6"/><rect x="250" y="210" width="110" height="80" rx="40"/></g><rect class="wall-o" x="40" y="40" width="720" height="480"/><path class="wall-i" d="M420 40V520M420 240H760M620 240V520M620 380H760M40 320H420M240 320V520"/><rect class="gap" x="414" y="120" width="12" height="46"/><path class="leaf" d="M420 120H374"/><path class="swing" d="M374 120A46 46 0 0 0 420 166"/><rect class="gap" x="520" y="234" width="44" height="12"/><path class="leaf" d="M520 240V284"/><path class="swing" d="M520 284A44 44 0 0 0 564 240"/><rect class="gap" x="614" y="290" width="12" height="40"/><path class="leaf" d="M620 290H660"/><path class="swing" d="M660 290A40 40 0 0 1 620 330"/><rect class="gap" x="614" y="430" width="12" height="40"/><path class="leaf" d="M620 430H660"/><path class="swing" d="M660 430A40 40 0 0 1 620 470"/><rect class="gap" x="300" y="314" width="44" height="12"/><path class="leaf" d="M300 320V276"/><path class="swing" d="M300 276A44 44 0 0 1 344 320"/><rect class="gap" x="234" y="400" width="12" height="44"/><path class="leaf" d="M240 400H196"/><path class="swing" d="M196 400A44 44 0 0 0 240 444"/><rect class="gap" x="330" y="514" width="54" height="12"/><path class="leaf" d="M330 520V466"/><path class="swing" d="M330 466A54 54 0 0 1 384 520"/><rect class="win" x="120" y="36" width="140" height="8"/><rect class="win" x="520" y="36" width="120" height="8"/><rect class="win" x="756" y="120" width="8" height="80"/><rect class="win" x="36" y="120" width="8" height="140"/><rect class="win" x="36" y="380" width="8" height="90"/><rect class="win" x="440" y="516" width="120" height="8"/><text class="rl" x="230" y="180">LIVING</text><text class="ra" x="230" y="195">32.4 m²</text><text class="rl hot" x="590" y="150">KITCHEN</text><text class="ra" x="590" y="165">18.6 m²</text><text class="rl" x="520" y="400">BEDROOM 1</text><text class="ra" x="520" y="415">14.8 m²</text><text class="rl" x="708" y="310">BATH</text><text class="ra" x="708" y="325">6.1 m²</text><text class="rl" x="714" y="470">SAUNA</text><text class="ra" x="714" y="485">4.2 m²</text><text class="rl" x="140" y="420">BEDROOM 2</text><text class="ra" x="140" y="435">11.9 m²</text><text class="rl" x="330" y="430">HALL</text><text class="ra" x="330" y="445">9.7 m²</text></g><g class="mk" style="--i:1"><path class="poly" d="M426 46L754 46L754 234L426 234Z"/><circle class="vtx" cx="426" cy="46" r="5"/><circle class="vtx" cx="754" cy="46" r="5"/><circle class="vtx" cx="754" cy="234" r="5"/><circle class="vtx" cx="426" cy="234" r="5"/></g><g class="mk" style="--i:3"><rect class="tag" x="530" y="168" width="120" height="34" rx="8"/><text class="tag-t" x="590" y="190">18.6 m²</text></g><g class="dim"><path d="M40 22H760M40 16V28M420 16V28M760 16V28"/><text x="230" y="17">7 400</text><text x="590" y="17">6 800</text></g></svg></div>
+          <div class="viz-chip mk" style="--i:4"><b>18.6 m²</b><span>Kitchen · from the room polygon</span></div>
+        </div>
+        <div class="viz-foot"><span>Computed, not estimated</span><span>↗ Geometry</span></div>
+      </div>
+      <div class="info">
+        <div class="meta"><span>CAD · DXF</span><span class="sep" aria-hidden="true">/</span><span>Swiss dwellings</span></div>
+        <h3 class="name">Floor plans</h3>
+        <p class="summary">Rooms, doors, windows and fixtures are read from the drawing’s own geometry. Areas come from the room polygon, and every counted item is outlined where it is on the sheet.</p>
+        <ul class="chips" aria-label="How it is answered"><li>Geometry engine</li><li>0 LLM tokens</li><li>~8 ms per question</li><li>EN · DE · FR · IT</li></ul>
+        <div class="outcome"><span class="outcome-l">Measured</span><p><b>99.49%</b> of 37,584 questions answered correctly.</p></div>
+        <div class="try"><span class="outcome-l">A real question to try</span><q>How many windows are drawn on this floor plan?</q></div>
+        <a class="btn btn-primary action" href="/app#data%2Fswiss_dwellings%2Fsite3387_bldg5238_floor23498.pdf">Explore<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+      </div>
+    </article>
+
+    <article class="panel" id="panel-bim" role="tabpanel" aria-labelledby="tab-bim" tabindex="0" hidden>
+      <div class="viz">
+        <div class="viz-label"><strong>harbour-c.ifc</strong><span>Illustration / 02</span></div>
+        <div class="viz-win">
+          <div class="win-head" aria-hidden="true"><i></i><i></i><i></i><span>Windows · all storeys</span></div>
+          <div class="viz-body viz-bim"><svg class="bim" viewBox="0 0 400 320" role="img" aria-label="Isometric view of a three-storey building model with every window marked"><ellipse cx="229" cy="226" rx="170" ry="30" class="shadow"/><polygon class="face-l" points="82.2,132.0 258.9,234.0 258.9,75.9 82.2,-26.1"/><polygon class="face-r" points="376.7,166.0 258.9,234.0 258.9,75.9 376.7,7.9"/><polygon class="face-t" points="200.0,-94.1 376.7,7.9 258.9,75.9 82.2,-26.1"/><polygon class="parapet" points="200.0,-87.3 364.9,7.9 258.9,69.1 94.0,-26.1"/><polyline class="slab" points="82.2,79.3 258.9,181.3 376.7,113.3"/><polyline class="slab" points="82.2,26.6 258.9,128.6 376.7,60.6"/><polygon class="door" points="160.2,177.1 183.8,190.6 183.8,153.2 160.2,139.7"/><polygon class="glass" points="105.8,128.6 132.3,143.9 132.3,118.4 105.8,103.1"/><polygon class="glass" points="208.8,188.1 235.3,203.4 235.3,177.9 208.8,162.6"/><polygon class="glass" points="105.8,75.9 132.3,91.2 132.3,65.7 105.8,50.4"/><polygon class="glass" points="157.3,105.6 183.8,120.9 183.8,95.4 157.3,80.1"/><polygon class="glass" points="208.8,135.4 235.3,150.7 235.3,125.2 208.8,109.9"/><polygon class="glass" points="331.0,122.7 304.5,137.9 304.5,112.4 331.0,97.2"/><polygon class="glass" points="105.8,23.2 132.3,38.5 132.3,13.0 105.8,-2.3"/><polygon class="glass" points="157.3,52.9 183.8,68.2 183.8,42.8 157.3,27.4"/><polygon class="glass" points="208.8,82.7 235.3,98.0 235.3,72.5 208.8,57.2"/><polygon class="glass" points="331.0,69.9 304.5,85.2 304.5,59.7 331.0,44.5"/><g class="mk" style="--i:0"><polygon class="hl" points="105.8,128.6 132.3,143.9 132.3,118.4 105.8,103.1"/><g class="pin"><circle cx="119.0" cy="108.5" r="8"/><text x="119.0" y="112.5">1</text></g></g><g class="mk" style="--i:1"><polygon class="hl" points="208.8,188.1 235.3,203.4 235.3,177.9 208.8,162.6"/><g class="pin"><circle cx="222.1" cy="168.0" r="8"/><text x="222.1" y="172.0">2</text></g></g><g class="mk" style="--i:2"><polygon class="hl" points="105.8,75.9 132.3,91.2 132.3,65.7 105.8,50.4"/><g class="pin"><circle cx="119.0" cy="55.8" r="8"/><text x="119.0" y="59.8">3</text></g></g><g class="mk" style="--i:3"><polygon class="hl" points="157.3,105.6 183.8,120.9 183.8,95.4 157.3,80.1"/><g class="pin"><circle cx="170.6" cy="85.5" r="8"/><text x="170.6" y="89.5">4</text></g></g><g class="mk" style="--i:4"><polygon class="hl" points="208.8,135.4 235.3,150.7 235.3,125.2 208.8,109.9"/><g class="pin"><circle cx="222.1" cy="115.3" r="8"/><text x="222.1" y="119.3">5</text></g></g><g class="mk" style="--i:5"><polygon class="hl" points="331.0,122.7 304.5,137.9 304.5,112.4 331.0,97.2"/><g class="pin"><circle cx="317.8" cy="102.5" r="8"/><text x="317.8" y="106.5">6</text></g></g><g class="mk" style="--i:6"><polygon class="hl" points="105.8,23.2 132.3,38.5 132.3,13.0 105.8,-2.3"/><g class="pin"><circle cx="119.0" cy="3.1" r="8"/><text x="119.0" y="7.1">7</text></g></g><g class="mk" style="--i:7"><polygon class="hl" points="157.3,52.9 183.8,68.2 183.8,42.8 157.3,27.4"/><g class="pin"><circle cx="170.6" cy="32.8" r="8"/><text x="170.6" y="36.8">8</text></g></g><g class="mk" style="--i:8"><polygon class="hl" points="208.8,82.7 235.3,98.0 235.3,72.5 208.8,57.2"/><g class="pin"><circle cx="222.1" cy="62.6" r="8"/><text x="222.1" y="66.6">9</text></g></g><g class="mk" style="--i:9"><polygon class="hl" points="331.0,69.9 304.5,85.2 304.5,59.7 331.0,44.5"/><g class="pin"><circle cx="317.8" cy="49.8" r="8"/><text x="317.8" y="53.8">10</text></g></g></svg></div>
+          <div class="viz-chip mk" style="--i:10"><b>10 windows</b><span>Matched by IFC GlobalId</span></div>
+        </div>
+        <div class="viz-foot"><span>Lit up in 2D and 3D</span><span>↗ BIM</span></div>
+      </div>
+      <div class="info">
+        <div class="meta"><span>IFC</span><span class="sep" aria-hidden="true">/</span><span>BIM models</span></div>
+        <h3 class="name">BIM models</h3>
+        <p class="summary">Spaces, quantities and elements come straight from the IFC model. Each answer lights up the real elements, matched by IFC GlobalId, on the storey plan and in the linked 3D view.</p>
+        <ul class="chips" aria-label="How it is answered"><li>IFC GlobalId match</li><li>Linked 3D view</li><li>0 LLM tokens</li><li>9 languages</li></ul>
+        <div class="outcome"><span class="outcome-l">Measured</span><p><b>99.90%</b> of 3,062 questions answered correctly.</p></div>
+        <div class="try"><span class="outcome-l">A real question to try</span><q>Wie viele Fenster enthält das Modell „FZK-Haus (Simple Phantasy Building)“?</q></div>
+        <a class="btn btn-primary action" href="/app#data%2Fifc_models%2Fkit-fzk-haus_ac20-fzk-haus.ifc">Explore<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+      </div>
+    </article>
+
+    <article class="panel" id="panel-scan" role="tabpanel" aria-labelledby="tab-scan" tabindex="0" hidden>
+      <div class="viz">
+        <div class="viz-label"><strong>plan-10052.png</strong><span>Illustration / 03</span></div>
+        <div class="viz-win">
+          <div class="win-head" aria-hidden="true"><i></i><i></i><i></i><span>Saunas · scanned sheet</span></div>
+          <div class="viz-body"><svg class="plan plan-scan" viewBox="0 0 800 560" role="img" aria-label="Scanned floor plan with the sauna highlighted"><defs><pattern id="ps-pg" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="rgba(31,79,168,.08)"/></pattern><filter id="ps-grain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="7"/><feColorMatrix values="0 0 0 0 .3  0 0 0 0 .28  0 0 0 0 .24  0 0 0 .22 0"/><feComposite in2="SourceGraphic" operator="in"/><feBlend in="SourceGraphic" mode="multiply"/></filter></defs><rect width="800" height="560" class="paper"/><g class="mk" style="--i:0"><rect class="hl room" x="625" y="385" width="130" height="130"/></g><g filter="url(#ps-grain)"><g class="fx"><rect x="440" y="52" width="300" height="34"/><circle cx="480" cy="69" r="10"/><circle cx="510" cy="69" r="10"/><rect x="560" y="56" width="44" height="26" rx="3"/><rect x="704" y="250" width="44" height="80" rx="18"/><rect x="630" y="250" width="40" height="30" rx="10"/><path d="M632 396H752M632 420H752M632 444H752"/><rect x="440" y="440" width="120" height="70"/><rect x="60" y="440" width="110" height="70"/><rect x="70" y="70" width="150" height="70" rx="6"/><rect x="250" y="210" width="110" height="80" rx="40"/></g><rect class="wall-o" x="40" y="40" width="720" height="480"/><path class="wall-i" d="M420 40V520M420 240H760M620 240V520M620 380H760M40 320H420M240 320V520"/><rect class="gap" x="414" y="120" width="12" height="46"/><path class="leaf" d="M420 120H374"/><path class="swing" d="M374 120A46 46 0 0 0 420 166"/><rect class="gap" x="520" y="234" width="44" height="12"/><path class="leaf" d="M520 240V284"/><path class="swing" d="M520 284A44 44 0 0 0 564 240"/><rect class="gap" x="614" y="290" width="12" height="40"/><path class="leaf" d="M620 290H660"/><path class="swing" d="M660 290A40 40 0 0 1 620 330"/><rect class="gap" x="614" y="430" width="12" height="40"/><path class="leaf" d="M620 430H660"/><path class="swing" d="M660 430A40 40 0 0 1 620 470"/><rect class="gap" x="300" y="314" width="44" height="12"/><path class="leaf" d="M300 320V276"/><path class="swing" d="M300 276A44 44 0 0 1 344 320"/><rect class="gap" x="234" y="400" width="12" height="44"/><path class="leaf" d="M240 400H196"/><path class="swing" d="M196 400A44 44 0 0 0 240 444"/><rect class="gap" x="330" y="514" width="54" height="12"/><path class="leaf" d="M330 520V466"/><path class="swing" d="M330 466A54 54 0 0 1 384 520"/><rect class="win" x="120" y="36" width="140" height="8"/><rect class="win" x="520" y="36" width="120" height="8"/><rect class="win" x="756" y="120" width="8" height="80"/><rect class="win" x="36" y="120" width="8" height="140"/><rect class="win" x="36" y="380" width="8" height="90"/><rect class="win" x="440" y="516" width="120" height="8"/><text class="rl" x="230" y="180">LIVING</text><text class="ra" x="230" y="195">32.4 m²</text><text class="rl" x="590" y="150">KITCHEN</text><text class="ra" x="590" y="165">18.6 m²</text><text class="rl" x="520" y="400">BEDROOM 1</text><text class="ra" x="520" y="415">14.8 m²</text><text class="rl" x="708" y="310">BATH</text><text class="ra" x="708" y="325">6.1 m²</text><text class="rl hot" x="714" y="470">SAUNA</text><text class="ra" x="714" y="485">4.2 m²</text><text class="rl" x="140" y="420">BEDROOM 2</text><text class="ra" x="140" y="435">11.9 m²</text><text class="rl" x="330" y="430">HALL</text><text class="ra" x="330" y="445">9.7 m²</text></g><g class="mk" style="--i:1"><g class="pin"><circle cx="740" cy="400" r="11"/><text x="740" y="404">1</text></g></g><g class="dim"><path d="M40 22H760M40 16V28M420 16V28M760 16V28"/><text x="230" y="17">7 400</text><text x="590" y="17">6 800</text></g></svg></div>
+          <div class="viz-chip mk" style="--i:3"><b>1 sauna</b><span>Network 1 · Gemma 1 · sources agree</span></div>
+        </div>
+        <div class="viz-foot"><span>Two sources, one answer</span><span>↗ Detection hybrid</span></div>
+      </div>
+      <div class="info">
+        <div class="meta"><span>PNG</span><span class="sep" aria-hidden="true">/</span><span>CubiCasa5K scans</span></div>
+        <h3 class="name">Scanned plans</h3>
+        <p class="summary">A scan has no geometry to compute from, so a detection network and Gemma 4 count independently. When the two agree, the answer is marked high confidence.</p>
+        <ul class="chips" aria-label="How it is answered"><li>Detection network</li><li>Gemma 4</li><li>Two-source agreement</li></ul>
+        <div class="outcome"><span class="outcome-l">Measured</span><p><b>65.9%</b> on the held-out test split, and <b>86.9%</b> when both sources agree.</p></div>
+        <div class="try"><span class="outcome-l">A real question to try</span><q>Kuinka monta saunaa pohjapiirustuksessa on?</q></div>
+        <a class="btn btn-primary action" href="/app#data%2Fcubicasa5k%2Fcolorful-10052.png">Explore<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+      </div>
+    </article>
+
+    <article class="panel" id="panel-sched" role="tabpanel" aria-labelledby="tab-sched" tabindex="0" hidden>
+      <div class="viz">
+        <div class="viz-label"><strong>A-801.pdf</strong><span>Illustration / 04</span></div>
+        <div class="viz-win">
+          <div class="win-head" aria-hidden="true"><i></i><i></i><i></i><span>Door schedule · type A1</span></div>
+          <div class="viz-body viz-sched">
+            <table class="sched" aria-label="Sample door schedule with the four type A1 doors highlighted">
+              <thead><tr><th scope="col">Door</th><th scope="col">Type</th><th scope="col">Size</th><th scope="col">Fire</th><th scope="col">Hardware</th></tr></thead>
+              <tbody>
+                <tr class="mk" style="--i:0"><td><span class="rp">1</span>101</td><td>A1</td><td>900 × 2100</td><td>EI 30</td><td>HW-1</td></tr>
+                <tr><td>102</td><td>A2</td><td>1800 × 2100</td><td>—</td><td>HW-3</td></tr>
+                <tr class="mk" style="--i:1"><td><span class="rp">2</span>103</td><td>A1</td><td>900 × 2100</td><td>—</td><td>HW-1</td></tr>
+                <tr><td>104</td><td>B1</td><td>1000 × 2100</td><td>EI 60</td><td>HW-2</td></tr>
+                <tr class="mk" style="--i:2"><td><span class="rp">3</span>105</td><td>A1</td><td>800 × 2100</td><td>—</td><td>HW-1</td></tr>
+                <tr><td>106</td><td>C3</td><td>2400 × 2400</td><td>—</td><td>HW-5</td></tr>
+                <tr><td>107</td><td>A2</td><td>1800 × 2100</td><td>EI 30</td><td>HW-3</td></tr>
+                <tr class="mk" style="--i:3"><td><span class="rp">4</span>108</td><td>A1</td><td>900 × 2100</td><td>—</td><td>HW-1</td></tr>
+                <tr><td>109</td><td>B1</td><td>1000 × 2100</td><td>EI 60</td><td>HW-2</td></tr>
+              </tbody>
+            </table>
           </div>
-          <figure class="sheet" id="sheet" data-active="doors">
-            <svg class="plan" viewBox="0 0 800 560" role="img" aria-labelledby="plan-title"><title id="plan-title">Illustrative floor plan, level 2</title><defs><pattern id="pg" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="rgba(255,255,255,0.04)"/></pattern></defs><rect width="800" height="560" fill="url(#pg)"/><g data-set="sauna"><g class="mk" style="--i:0"><rect class="hl room" x="625" y="385" width="130" height="130"/><g class="pin"><circle cx="740" cy="400" r="11"/><text x="740" y="404">1</text></g></g></g><g class="fx"><rect x="440" y="52" width="300" height="34"/><circle cx="480" cy="69" r="10"/><circle cx="510" cy="69" r="10"/><rect x="560" y="56" width="44" height="26" rx="3"/><rect x="704" y="250" width="44" height="80" rx="18"/><rect x="630" y="250" width="40" height="30" rx="10"/><path d="M632 396H752M632 420H752M632 444H752"/><rect x="440" y="440" width="120" height="70"/><rect x="60" y="440" width="110" height="70"/><rect x="70" y="70" width="150" height="70" rx="6"/><rect x="250" y="210" width="110" height="80" rx="40"/></g><rect class="wall-o" x="40" y="40" width="720" height="480"/><path class="wall-i" d="M420 40V520M420 240H760M620 240V520M620 380H760M40 320H420M240 320V520"/><rect class="gap" x="414" y="120" width="12" height="46"/><path class="leaf" d="M420 120H374"/><path class="swing" d="M374 120A46 46 0 0 0 420 166"/><rect class="gap" x="520" y="234" width="44" height="12"/><path class="leaf" d="M520 240V284"/><path class="swing" d="M520 284A44 44 0 0 0 564 240"/><rect class="gap" x="614" y="290" width="12" height="40"/><path class="leaf" d="M620 290H660"/><path class="swing" d="M660 290A40 40 0 0 1 620 330"/><rect class="gap" x="614" y="430" width="12" height="40"/><path class="leaf" d="M620 430H660"/><path class="swing" d="M660 430A40 40 0 0 1 620 470"/><rect class="gap" x="300" y="314" width="44" height="12"/><path class="leaf" d="M300 320V276"/><path class="swing" d="M300 276A44 44 0 0 1 344 320"/><rect class="gap" x="234" y="400" width="12" height="44"/><path class="leaf" d="M240 400H196"/><path class="swing" d="M196 400A44 44 0 0 0 240 444"/><rect class="gap" x="330" y="514" width="54" height="12"/><path class="leaf" d="M330 520V466"/><path class="swing" d="M330 466A54 54 0 0 1 384 520"/><rect class="win" x="120" y="36" width="140" height="8"/><rect class="win" x="520" y="36" width="120" height="8"/><rect class="win" x="756" y="120" width="8" height="80"/><rect class="win" x="36" y="120" width="8" height="140"/><rect class="win" x="36" y="380" width="8" height="90"/><rect class="win" x="440" y="516" width="120" height="8"/><text class="rl" x="230" y="180">LIVING</text><text class="ra" x="230" y="195">32.4 m²</text><text class="rl" x="590" y="140">KITCHEN</text><text class="ra" x="590" y="155">18.6 m²</text><text class="rl" x="520" y="400">BEDROOM 1</text><text class="ra" x="520" y="415">14.8 m²</text><text class="rl" x="708" y="310">BATH</text><text class="ra" x="708" y="325">6.1 m²</text><text class="rl sauna" x="714" y="470">SAUNA</text><text class="ra" x="714" y="485">4.2 m²</text><text class="rl" x="140" y="420">BEDROOM 2</text><text class="ra" x="140" y="435">11.9 m²</text><text class="rl" x="330" y="430">HALL</text><text class="ra" x="330" y="445">9.7 m²</text><g data-set="doors"><g class="mk" style="--i:0"><rect class="hl" x="370" y="116" width="54" height="54"/><g class="pin"><circle cx="360" cy="143" r="11"/><text x="360" y="147">1</text></g></g><g class="mk" style="--i:1"><rect class="hl" x="516" y="236" width="52" height="52"/><g class="pin"><circle cx="542" cy="298" r="11"/><text x="542" y="302">2</text></g></g><g class="mk" style="--i:2"><rect class="hl" x="616" y="286" width="48" height="48"/><g class="pin"><circle cx="674" cy="310" r="11"/><text x="674" y="314">3</text></g></g><g class="mk" style="--i:3"><rect class="hl" x="616" y="426" width="48" height="48"/><g class="pin"><circle cx="674" cy="450" r="11"/><text x="674" y="454">4</text></g></g><g class="mk" style="--i:4"><rect class="hl" x="296" y="272" width="52" height="52"/><g class="pin"><circle cx="322" cy="262" r="11"/><text x="322" y="266">5</text></g></g><g class="mk" style="--i:5"><rect class="hl" x="192" y="396" width="52" height="52"/><g class="pin"><circle cx="182" cy="422" r="11"/><text x="182" y="426">6</text></g></g><g class="mk" style="--i:6"><rect class="hl" x="326" y="462" width="62" height="62"/><g class="pin"><circle cx="357" cy="452" r="11"/><text x="357" y="456">7</text></g></g></g><g data-set="windows"><g class="mk" style="--i:0"><rect class="hl" x="116" y="32" width="148" height="16"/><g class="pin"><circle cx="190" cy="62" r="11"/><text x="190" y="66">1</text></g></g><g class="mk" style="--i:1"><rect class="hl" x="516" y="32" width="128" height="16"/><g class="pin"><circle cx="580" cy="62" r="11"/><text x="580" y="66">2</text></g></g><g class="mk" style="--i:2"><rect class="hl" x="752" y="116" width="16" height="88"/><g class="pin"><circle cx="734" cy="160" r="11"/><text x="734" y="164">3</text></g></g><g class="mk" style="--i:3"><rect class="hl" x="32" y="116" width="16" height="148"/><g class="pin"><circle cx="62" cy="190" r="11"/><text x="62" y="194">4</text></g></g><g class="mk" style="--i:4"><rect class="hl" x="32" y="376" width="16" height="98"/><g class="pin"><circle cx="62" cy="425" r="11"/><text x="62" y="429">5</text></g></g><g class="mk" style="--i:5"><rect class="hl" x="436" y="512" width="128" height="16"/><g class="pin"><circle cx="500" cy="494" r="11"/><text x="500" y="498">6</text></g></g></g></svg>
-          </figure>
-          <article class="answer" id="answer" aria-label="Answer">
-            <p class="answer-q" id="answer-q">How many doors are on this floor?</p>
-            <div class="answer-main">
-              <span class="num" id="num" aria-hidden="true">7</span>
-              <span class="unit"><b id="unit">Doors</b><span id="unit-sub">Level 2 · every door leaf</span></span>
-              <span class="stamp" aria-hidden="true">Verified<small>matches drawing</small></span>
-            </div>
-            <dl class="answer-meta">
-              <div><dt>Engine</dt><dd id="engine">Geometry</dd></div>
-              <div><dt>LLM tokens</dt><dd id="tokens">0</dd></div>
-              <div><dt>Evidence</dt><dd id="evid">7 marks on sheet</dd></div>
-            </dl>
-            <p class="sr" id="announce" aria-live="polite"></p>
-          </article>
+          <div class="viz-chip mk" style="--i:5"><b>4 doors</b><span>Type A1 · rows counted by OQVAR</span></div>
         </div>
+        <div class="viz-foot"><span>Rows picked, then counted</span><span>↗ Sheet text</span></div>
       </div>
+      <div class="info">
+        <div class="meta"><span>PDF</span><span class="sep" aria-hidden="true">/</span><span>Opening Design sheets</span></div>
+        <h3 class="name">Schedules</h3>
+        <p class="summary">On sheets with real text, Gemma picks the rows that answer the question and OQVAR counts them itself. Every picked row is highlighted on the sheet.</p>
+        <ul class="chips" aria-label="How it is answered"><li>Sheet text</li><li>Rows picked by Gemma</li><li>Counted by OQVAR</li></ul>
+        <div class="outcome"><span class="outcome-l">Measured</span><p><b>51.3%</b> on the first 39 schedule questions. This is the engine we are improving next.</p></div>
+        <div class="try"><span class="outcome-l">A real question to try</span><q>On sheet A-801 of the Xcel Sports Complex drawings, how many doors (door numbers) are listed in the door schedule?</q></div>
+        <a class="btn btn-primary action" href="/app#data%2Fopening_design%2FSports_Complex%2FSheets%20-%20Current%20Set%2FA-801%20-%20Door%20and%20Finish%20Schedules%20%26%20Wall%20Types.pdf">Explore<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+      </div>
+    </article>
+
+    <p class="note">Previews are illustrations. The questions, the accuracy figures and the drawings behind each Explore button come from Stoa’s dataset.</p>
+  </div>
+</section>
+
+<!-- ================================================================ why: the same sheet, two answers -->
+<section class="sec" id="why" aria-labelledby="why-title">
+  <div class="wrap">
+    <div class="eyebrow">Why OQVAR / compute, don’t guess</div>
+    <header class="head">
+      <h2 id="why-title" class="title">An answer that only sounds right is useless on site.</h2>
+      <div class="intro">
+        <p class="desc">Site engineers spend hours a day searching dense drawing sets. General-purpose AI reads those drawings as pictures, and it shows. Same sheet, two answers:</p>
+      </div>
+    </header>
+    <div class="vs">
+      <article class="vs-card vs-ai" aria-labelledby="vs-ai-h">
+        <div class="vs-top"><h3 id="vs-ai-h">General-purpose AI</h3><span>Illustration</span></div>
+        <p class="bubble">“There are about <b>9 doors</b> on this floor.”</p>
+        <ul class="faults">
+          <li><span class="x" aria-hidden="true"></span><div><b>Miscounts symbols.</b> Doors and fixtures are estimated from pixels.</div></li>
+          <li><span class="x" aria-hidden="true"></span><div><b>Misreads scales.</b> An area is only right if the scale is.</div></li>
+          <li><span class="x" aria-hidden="true"></span><div><b>Invents dimensions.</b> A plausible number with nothing behind it.</div></li>
+        </ul>
+        <div class="vs-foot">Nothing on the sheet to check</div>
+      </article>
+      <article class="vs-card vs-oq" aria-labelledby="vs-oq-h">
+        <div class="vs-top"><h3 id="vs-oq-h">OQVAR</h3><span>Same sheet</span></div>
+        <div class="vs-answer"><span class="vs-num">7</span><span class="vs-unit">doors<small>Geometry · 0 LLM tokens · 8 ms</small></span><span class="stamp" aria-hidden="true">Checked<small>matches drawing</small></span></div>
+        <div class="vs-sheet"><svg class="plan" viewBox="0 0 800 560" role="img" aria-label="Sample floor plan with all seven doors outlined and numbered"><defs><pattern id="pd-pg" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="rgba(31,79,168,.08)"/></pattern></defs><rect width="800" height="560" class="paper"/><rect width="800" height="560" fill="url(#pd-pg)"/><g><g class="fx"><rect x="440" y="52" width="300" height="34"/><circle cx="480" cy="69" r="10"/><circle cx="510" cy="69" r="10"/><rect x="560" y="56" width="44" height="26" rx="3"/><rect x="704" y="250" width="44" height="80" rx="18"/><rect x="630" y="250" width="40" height="30" rx="10"/><path d="M632 396H752M632 420H752M632 444H752"/><rect x="440" y="440" width="120" height="70"/><rect x="60" y="440" width="110" height="70"/><rect x="70" y="70" width="150" height="70" rx="6"/><rect x="250" y="210" width="110" height="80" rx="40"/></g><rect class="wall-o" x="40" y="40" width="720" height="480"/><path class="wall-i" d="M420 40V520M420 240H760M620 240V520M620 380H760M40 320H420M240 320V520"/><rect class="gap" x="414" y="120" width="12" height="46"/><path class="leaf" d="M420 120H374"/><path class="swing" d="M374 120A46 46 0 0 0 420 166"/><rect class="gap" x="520" y="234" width="44" height="12"/><path class="leaf" d="M520 240V284"/><path class="swing" d="M520 284A44 44 0 0 0 564 240"/><rect class="gap" x="614" y="290" width="12" height="40"/><path class="leaf" d="M620 290H660"/><path class="swing" d="M660 290A40 40 0 0 1 620 330"/><rect class="gap" x="614" y="430" width="12" height="40"/><path class="leaf" d="M620 430H660"/><path class="swing" d="M660 430A40 40 0 0 1 620 470"/><rect class="gap" x="300" y="314" width="44" height="12"/><path class="leaf" d="M300 320V276"/><path class="swing" d="M300 276A44 44 0 0 1 344 320"/><rect class="gap" x="234" y="400" width="12" height="44"/><path class="leaf" d="M240 400H196"/><path class="swing" d="M196 400A44 44 0 0 0 240 444"/><rect class="gap" x="330" y="514" width="54" height="12"/><path class="leaf" d="M330 520V466"/><path class="swing" d="M330 466A54 54 0 0 1 384 520"/><rect class="win" x="120" y="36" width="140" height="8"/><rect class="win" x="520" y="36" width="120" height="8"/><rect class="win" x="756" y="120" width="8" height="80"/><rect class="win" x="36" y="120" width="8" height="140"/><rect class="win" x="36" y="380" width="8" height="90"/><rect class="win" x="440" y="516" width="120" height="8"/><text class="rl" x="230" y="180">LIVING</text><text class="ra" x="230" y="195">32.4 m²</text><text class="rl" x="590" y="150">KITCHEN</text><text class="ra" x="590" y="165">18.6 m²</text><text class="rl" x="520" y="400">BEDROOM 1</text><text class="ra" x="520" y="415">14.8 m²</text><text class="rl" x="708" y="310">BATH</text><text class="ra" x="708" y="325">6.1 m²</text><text class="rl" x="714" y="470">SAUNA</text><text class="ra" x="714" y="485">4.2 m²</text><text class="rl" x="140" y="420">BEDROOM 2</text><text class="ra" x="140" y="435">11.9 m²</text><text class="rl" x="330" y="430">HALL</text><text class="ra" x="330" y="445">9.7 m²</text></g><g class="mk" style="--i:0"><rect class="hl" x="370" y="116" width="54" height="54"/><g class="pin"><circle cx="360" cy="143.0" r="11"/><text x="360" y="147.0">1</text></g></g><g class="mk" style="--i:1"><rect class="hl" x="516" y="236" width="52" height="52"/><g class="pin"><circle cx="542.0" cy="298" r="11"/><text x="542.0" y="302">2</text></g></g><g class="mk" style="--i:2"><rect class="hl" x="616" y="286" width="48" height="48"/><g class="pin"><circle cx="674" cy="310.0" r="11"/><text x="674" y="314.0">3</text></g></g><g class="mk" style="--i:3"><rect class="hl" x="616" y="426" width="48" height="48"/><g class="pin"><circle cx="674" cy="450.0" r="11"/><text x="674" y="454.0">4</text></g></g><g class="mk" style="--i:4"><rect class="hl" x="296" y="272" width="52" height="52"/><g class="pin"><circle cx="322.0" cy="262" r="11"/><text x="322.0" y="266">5</text></g></g><g class="mk" style="--i:5"><rect class="hl" x="192" y="396" width="52" height="52"/><g class="pin"><circle cx="182" cy="422.0" r="11"/><text x="182" y="426.0">6</text></g></g><g class="mk" style="--i:6"><rect class="hl" x="326" y="462" width="62" height="62"/><g class="pin"><circle cx="357.0" cy="452" r="11"/><text x="357.0" y="456">7</text></g></g><g class="dim"><path d="M40 22H760M40 16V28M420 16V28M760 16V28"/><text x="230" y="17">7 400</text><text x="590" y="17">6 800</text></g></svg></div>
+        <div class="vs-foot">Every door outlined and numbered on the sheet</div>
+      </article>
     </div>
   </div>
 </section>
 
-<!-- PROBLEM -->
-<section class="sec-problem">
-  <div class="container">
-    <div class="sec-eyebrow">The problem</div>
-    <h2 class="sec-h2">On site, an answer has to <em>be</em> right — not just sound right.</h2>
-    <div class="problem-grid">
-      <div class="problem-card">
-        <div class="problem-icon">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-        </div>
-        <h3>Miscounts symbols</h3>
-        <p>Doors, fixtures and schedule rows are read as pictures and estimated — not counted from geometry.</p>
+<!-- ================================================================ engines -->
+<section class="sec" id="engines" aria-labelledby="en-title">
+  <div class="wrap">
+    <div class="eyebrow">How it answers / cheapest trustworthy engine first</div>
+    <header class="head">
+      <h2 id="en-title" class="title">Exact when it can be. Honest when it can’t.</h2>
+      <div class="intro">
+        <p class="desc">Each question goes to the first engine that can answer it exactly. A language model steps in only where the drawing has no structure to compute from, and the answer always says which engine answered.</p>
+        <span class="count">Engines <span aria-hidden="true">/</span><strong>05 in order</strong></span>
       </div>
-      <div class="problem-card">
-        <div class="problem-icon">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
-        </div>
-        <h3>Misreads scales</h3>
-        <p>A room area is only right when the drawing's units and scale are parsed correctly — not guessed.</p>
-      </div>
-      <div class="problem-card">
-        <div class="problem-icon">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="3"/></svg>
-        </div>
-        <h3>Invents dimensions</h3>
-        <p>A plausible number with nothing on the sheet to back it up. In construction that's a liability.</p>
-      </div>
-    </div>
+    </header>
+    <ol class="engines">
+      <li><span class="tab-n">1A</span><div class="en-main"><h3>Geometry / BIM</h3><p>Dataset-style questions on CAD and IFC drawings</p></div><span class="chip chip-good">No LLM</span><p class="en-ev">Polygons on the sheet, IFC elements in 3D</p></li>
+      <li><span class="tab-n">1B</span><div class="en-main"><h3>Detection hybrid</h3><p>Counts on raster plans</p></div><span class="chip chip-good">No LLM at question time</span><p class="en-ev">The network’s detected shapes</p></li>
+      <li><span class="tab-n">2</span><div class="en-main"><h3>Query planner</h3><p>Free-form questions on CAD and IFC</p></div><span class="chip">1 query · ~1,200 tokens</span><p class="en-ev">The rows the query returned</p></li>
+      <li><span class="tab-n">3</span><div class="en-main"><h3>Sheet text</h3><p>PDF sheets with real text, such as schedules</p></div><span class="chip">Picks rows, we count</span><p class="en-ev">Each picked row, highlighted</p></li>
+      <li><span class="tab-n">4</span><div class="en-main"><h3>Vision</h3><p>Scans and anything without structure</p></div><span class="chip">Reads the image</span><p class="en-ev">The model’s own boxes, flagged low confidence</p></li>
+    </ol>
   </div>
 </section>
 
-<!-- HOW IT WORKS -->
-<section class="sec-how" id="how">
-  <div class="container">
-    <div class="sec-eyebrow">How it works</div>
-    <div class="how-head">
-      <h2 class="sec-h2">Cheapest trustworthy<br>engine first.</h2>
-      <p class="sec-sub">Each question routes to the first engine that can answer it exactly. An LLM is only used where the drawing has no structure to compute from.</p>
-    </div>
-    <div class="pipeline">
-      <div class="pipe-step">
-        <div class="pipe-num">1A</div>
-        <div class="pipe-body">
-          <h4>Geometry / BIM</h4>
-          <p>CAD and IFC drawings answered by spatial index. Polygons on the sheet, elements in 3D.</p>
-          <span class="pipe-tag pipe-tag-zero">0 LLM tokens</span>
-        </div>
+<!-- ================================================================ benchmark -->
+<section class="sec" id="benchmark" aria-labelledby="b-title">
+  <div class="wrap">
+    <div class="eyebrow">Benchmark / Stoa’s own questions</div>
+    <header class="head">
+      <h2 id="b-title" class="title">Measured, not claimed.</h2>
+      <div class="intro">
+        <p class="desc">Counts must be exact; areas, lengths and volumes within 2%. The weak spots are on the chart too: scanned plans and real PDF schedules are where the work continues.</p>
+        <span class="count" id="bm-count" hidden>Measured <span aria-hidden="true">/</span><strong id="bm-gen"></strong></span>
       </div>
-      <div class="pipe-step">
-        <div class="pipe-num">1B</div>
-        <div class="pipe-body">
-          <h4>Detection hybrid</h4>
-          <p>Counts on raster plans via a detection network. Zero tokens at question time for evaluated plans.</p>
-          <span class="pipe-tag pipe-tag-zero">0 LLM tokens</span>
-        </div>
-      </div>
-      <div class="pipe-step">
-        <div class="pipe-num">2</div>
-        <div class="pipe-body">
-          <h4>Query planner</h4>
-          <p>Free-form questions on CAD/IFC. One LLM call writes a query; the engine computes the result.</p>
-          <span class="pipe-tag">~1,200 tokens</span>
-        </div>
-      </div>
-      <div class="pipe-step">
-        <div class="pipe-num">3</div>
-        <div class="pipe-body">
-          <h4>Sheet text</h4>
-          <p>PDF schedules with real text. LLM picks rows; we do the counting. Each row highlighted.</p>
-          <span class="pipe-tag">Picks rows</span>
-        </div>
-      </div>
-      <div class="pipe-step">
-        <div class="pipe-num">4</div>
-        <div class="pipe-body">
-          <h4>Vision</h4>
-          <p>Scans and unstructured drawings. LLM reads the image; answer flagged low confidence.</p>
-          <span class="pipe-tag">Reads image</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- FEATURES BENTO -->
-<section class="sec-bento">
-  <div class="container">
-    <div class="sec-eyebrow">What you get</div>
-    <h2 class="sec-h2">Built for the engineer<br>who needs to check.</h2>
-    <div class="bento">
-      <div class="bento-card bento-wide">
-        <div class="bento-label">Evidence-first answers</div>
-        <h3>Every answer cites its source on the sheet.</h3>
-        <p>Counted items are outlined and numbered where they appear. Step through each one with ← →. No black box.</p>
-        <div class="bento-visual">
-          <div class="ev-pill ev-1"><span class="ev-dot"></span>Door leaf highlighted</div>
-          <div class="ev-pill ev-2"><span class="ev-dot"></span>Pin 3 of 7 placed</div>
-          <div class="ev-pill ev-3"><span class="ev-dot"></span>Geometry engine · 0 tokens</div>
-        </div>
-      </div>
-      <div class="bento-card">
-        <div class="bento-label">Token efficiency</div>
-        <h3>Zero LLM tokens for most answers.</h3>
-        <div class="big-stat">0<span>tokens</span></div>
-        <p>Geometry and detection engines answer the majority of Stoa questions without an LLM call.</p>
-      </div>
-      <div class="bento-card">
-        <div class="bento-label">Multilingual</div>
-        <h3>Ask in 11 languages.</h3>
-        <div class="lang-cloud">
-          <span>EN</span><span>FI</span><span>DE</span><span>FR</span><span>IT</span><span>NL</span><span>DA</span><span>ET</span><span>PL</span><span>ES</span><span>RO</span>
-        </div>
-        <p>Answer comes back in the same language you asked.</p>
-      </div>
-      <div class="bento-card">
-        <div class="bento-label">3D linked</div>
-        <h3>Answers light up the BIM model too.</h3>
-        <p>IFC GlobalIds connect every answer to the storey plan and the linked 3D view simultaneously.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- BENCHMARK -->
-<section class="sec-benchmark" id="benchmark">
-  <div class="container">
-    <div class="sec-eyebrow">Benchmark</div>
-    <div class="bench-head">
-      <h2 class="sec-h2">Measured, not claimed.</h2>
-      <p class="sec-sub">Accuracy on Stoa's own question set. Counts must be exact; areas and lengths within 2%. The weak spots are shown too.</p>
-    </div>
+    </header>
     <figure class="bm" id="bm">
       <div class="bm-head">
-        <figcaption><b>Accuracy by drawing type</b><span id="bm-gen">by drawing type</span></figcaption>
-        <button type="button" class="btn-outline-sm" id="bm-toggle" aria-expanded="false" aria-controls="bm-table">Table view</button>
+        <figcaption><b>Share of questions answered correctly</b><span>by drawing type</span></figcaption>
+        <button type="button" class="btn btn-ghost btn-sm" id="bm-toggle" aria-expanded="false" aria-controls="bm-table">Show as table</button>
       </div>
       <div class="bm-plot" id="bm-plot"></div>
       <div class="bm-tip" id="bm-tip" role="presentation" hidden></div>
       <table class="bm-table" id="bm-table" hidden>
         <caption class="sr">Benchmark accuracy by drawing type</caption>
-        <thead><tr><th scope="col">Drawing type</th><th scope="col">Test set</th><th scope="col">Notes</th><th scope="col" class="r">Accuracy</th></tr></thead>
+        <thead><tr><th scope="col">Drawing type</th><th scope="col">Test set</th><th scope="col">Questions and notes</th><th scope="col" class="r">Accuracy</th></tr></thead>
         <tbody></tbody>
       </table>
-      <p class="bm-empty" id="bm-empty" hidden>Benchmark data could not be loaded. Full test report is in the app.</p>
+      <p class="bm-empty" id="bm-empty" hidden>The benchmark data could not be loaded. The full test report is in the app.</p>
     </figure>
-    <p class="bench-more">Every number, every baseline model, and how each was measured: <a href="/app">open the app</a> and press <strong>Test report</strong>.</p>
+    <p class="note">Every number, every baseline model and how each was measured: <a href="/app">open the app</a> and press <b>Test report</b>.</p>
   </div>
 </section>
 
-<!-- LANGUAGES -->
-<section class="sec-languages" id="languages">
-  <div class="container">
-    <div class="sec-eyebrow">11 languages</div>
-    <div class="lang-head">
-      <h2 class="sec-h2">Ask in your language.</h2>
-      <p class="sec-sub">Real questions from Stoa's dataset, with the dataset's answer. Click any to open the drawing in the app.</p>
-    </div>
+<!-- ================================================================ languages -->
+<section class="sec" id="languages" aria-labelledby="l-title">
+  <div class="wrap">
+    <div class="eyebrow">Languages / real questions from the dataset</div>
+    <header class="head">
+      <h2 id="l-title" class="title">Ask in your language.</h2>
+      <div class="intro">
+        <p class="desc">Each card is a real question from Stoa’s dataset with the dataset’s answer. Open one in the app and check it on the drawing.</p>
+        <span class="count">Languages <span aria-hidden="true">/</span><strong>11</strong></span>
+      </div>
+    </header>
     <ul class="qs">
-      <li><a href="/app#data%2Fcubicasa5k%2Fcolorful-10052.png"><span class="qh"><span class="code">FI</span><span class="lang">Suomi</span></span><q>Kuinka monta saunaa pohjapiirustuksessa on?</q><span class="qf"><span class="ans">Answer <b>1</b></span><span class="open">Open →</span></span></a></li>
-      <li><a href="/app#data%2Fswiss_dwellings%2Fsite3387_bldg5238_floor23498.pdf"><span class="qh"><span class="code">EN</span><span class="lang">English</span></span><q>How many windows are drawn on this floor plan?</q><span class="qf"><span class="ans">Answer <b>11</b></span><span class="open">Open →</span></span></a></li>
-      <li><a href="/app#data%2Fifc_models%2Fkit-fzk-haus_ac20-fzk-haus.ifc"><span class="qh"><span class="code">DE</span><span class="lang">Deutsch</span></span><q>Wie viele Türen enthält das Modell „FZK-Haus"?</q><span class="qf"><span class="ans">Answer <b>5</b></span><span class="open">Open →</span></span></a></li>
-      <li><a href="/app#data%2Fswiss_dwellings%2Fsite765_bldg1658_floor7457.pdf"><span class="qh"><span class="code">FR</span><span class="lang">Français</span></span><q>Combien de portes sont dessinées sur ce plan ?</q><span class="qf"><span class="ans">Answer <b>34</b></span><span class="open">Open →</span></span></a></li>
-      <li><a href="/app#data%2Fswiss_dwellings%2Fsite3506_bldg5388_floor23741.pdf"><span class="qh"><span class="code">IT</span><span class="lang">Italiano</span></span><q>Quante porte sono disegnate in questa pianta?</q><span class="qf"><span class="ans">Answer <b>8</b></span><span class="open">Open →</span></span></a></li>
-      <li><a href="/app#data%2Fifc_models%2Fbsc-gymzaal-amersfoort_example-project-location.ifc"><span class="qh"><span class="code">NL</span><span class="lang">Nederlands</span></span><q>Hoeveel deuren bevat het model 'Gymzaal Hambakendreef'?</q><span class="qf"><span class="ans">Answer <b>21</b></span><span class="open">Open →</span></span></a></li>
-      <li><a href="/app#data%2Fifc_models%2Fbsc-molio_molio-with-uris.ifc"><span class="qh"><span class="code">DA</span><span class="lang">Dansk</span></span><q>Hvor mange døre er der i modellen 'Molio Demo-hus'?</q><span class="qf"><span class="ans">Answer <b>119</b></span><span class="open">Open →</span></span></a></li>
-      <li><a href="/app#data%2Fifc_models%2Fbsc-esplanades_1807-ep-ar-v18.ifc"><span class="qh"><span class="code">ET</span><span class="lang">Eesti</span></span><q>Mitu ust on mudelis „Maleva tänav 18 korterelamu"?</q><span class="qf"><span class="ans">Answer <b>211</b></span><span class="open">Open →</span></span></a></li>
-      <li><a href="/app#data%2Fifc_models%2Fbimspeed-gdynia_ruchu-oporu-18.ifc"><span class="qh"><span class="code">PL</span><span class="lang">Polski</span></span><q>Ile drzwi znajduje się w modelu „BIM-Speed Gdynia"?</q><span class="qf"><span class="ans">Answer <b>16</b></span><span class="open">Open →</span></span></a></li>
-      <li><a href="/app#data%2Fifc_models%2Fbimspeed-vitoria_ald26-before.ifc"><span class="qh"><span class="code">ES</span><span class="lang">Español</span></span><q>¿Cuál es el número de puertas en el modelo «BIM-Speed Vitoria-Gasteiz»?</q><span class="qf"><span class="ans">Answer <b>68</b></span><span class="open">Open →</span></span></a></li>
-      <li><a href="/app#data%2Fifc_models%2Fbimspeed-barlad_ro-arc-m3-e-pth-0000.ifc"><span class="qh"><span class="code">RO</span><span class="lang">Română</span></span><q>Care este numărul de ferestre din modelul „BIM-Speed Barlad"?</q><span class="qf"><span class="ans">Answer <b>315</b></span><span class="open">Open →</span></span></a></li>
+      <li><a href="/app#data%2Fcubicasa5k%2Fcolorful-10052.png"><span class="qh"><span class="tab-n">FI</span><span class="lang">Suomi</span></span><q>Kuinka monta saunaa pohjapiirustuksessa on?</q><span class="qf"><span class="ans">Answer <b>1</b></span><span class="open">Open<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></span></span></a></li>
+      <li><a href="/app#data%2Fswiss_dwellings%2Fsite3387_bldg5238_floor23498.pdf"><span class="qh"><span class="tab-n">EN</span><span class="lang">English</span></span><q>How many windows are drawn on this floor plan?</q><span class="qf"><span class="ans">Answer <b>11</b></span><span class="open">Open<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></span></span></a></li>
+      <li><a href="/app#data%2Fifc_models%2Fkit-fzk-haus_ac20-fzk-haus.ifc"><span class="qh"><span class="tab-n">DE</span><span class="lang">Deutsch</span></span><q>Wie viele Türen enthält das Modell „FZK-Haus (Simple Phantasy Building)“?</q><span class="qf"><span class="ans">Answer <b>5</b></span><span class="open">Open<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></span></span></a></li>
+      <li><a href="/app#data%2Fswiss_dwellings%2Fsite765_bldg1658_floor7457.pdf"><span class="qh"><span class="tab-n">FR</span><span class="lang">Français</span></span><q>Combien de portes (portes intérieures et portes d'entrée confondues) sont dessinées sur ce plan ?</q><span class="qf"><span class="ans">Answer <b>34</b></span><span class="open">Open<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></span></span></a></li>
+      <li><a href="/app#data%2Fswiss_dwellings%2Fsite3506_bldg5388_floor23741.pdf"><span class="qh"><span class="tab-n">IT</span><span class="lang">Italiano</span></span><q>Quante porte (porte interne e porte d'ingresso insieme) sono disegnate in questa pianta?</q><span class="qf"><span class="ans">Answer <b>8</b></span><span class="open">Open<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></span></span></a></li>
+      <li><a href="/app#data%2Fifc_models%2Fbsc-gymzaal-amersfoort_example-project-location.ifc"><span class="qh"><span class="tab-n">NL</span><span class="lang">Nederlands</span></span><q>Hoeveel deuren bevat het model 'Gymzaal Hambakendreef, Amersfoort (example project location)'?</q><span class="qf"><span class="ans">Answer <b>21</b></span><span class="open">Open<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></span></span></a></li>
+      <li><a href="/app#data%2Fifc_models%2Fbsc-molio_molio-with-uris.ifc"><span class="qh"><span class="tab-n">DA</span><span class="lang">Dansk</span></span><q>Hvor mange døre er der i modellen 'Molio Demo-hus'?</q><span class="qf"><span class="ans">Answer <b>119</b></span><span class="open">Open<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></span></span></a></li>
+      <li><a href="/app#data%2Fifc_models%2Fbsc-esplanades_1807-ep-ar-v18.ifc"><span class="qh"><span class="tab-n">ET</span><span class="lang">Eesti</span></span><q>Mitu ust on mudelis „Maleva tänav 18 korterelamu (Esplanades example model)“?</q><span class="qf"><span class="ans">Answer <b>211</b></span><span class="open">Open<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></span></span></a></li>
+      <li><a href="/app#data%2Fifc_models%2Fbimspeed-gdynia_ruchu-oporu-18.ifc"><span class="qh"><span class="tab-n">PL</span><span class="lang">Polski</span></span><q>Ile drzwi znajduje się w modelu „BIM-Speed Gdynia - semi-detached house Ruchu Oporu 18”?</q><span class="qf"><span class="ans">Answer <b>16</b></span><span class="open">Open<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></span></span></a></li>
+      <li><a href="/app#data%2Fifc_models%2Fbimspeed-vitoria_ald26-before.ifc"><span class="qh"><span class="tab-n">ES</span><span class="lang">Español</span></span><q>¿Cuál es el número de puertas en el modelo «BIM-Speed Vitoria-Gasteiz - ALD26 (baseline, before renovation)»?</q><span class="qf"><span class="ans">Answer <b>68</b></span><span class="open">Open<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></span></span></a></li>
+      <li><a href="/app#data%2Fifc_models%2Fbimspeed-barlad_ro-arc-m3-e-pth-0000.ifc"><span class="qh"><span class="tab-n">RO</span><span class="lang">Română</span></span><q>Care este numărul de ferestre din modelul „BIM-Speed Barlad apartment block (architecture + MEP)”?</q><span class="qf"><span class="ans">Answer <b>315</b></span><span class="open">Open<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></span></span></a></li>
     </ul>
   </div>
 </section>
 
-<!-- CTA -->
-<section class="sec-cta">
-  <div class="cta-glow" aria-hidden="true"></div>
-  <div class="container">
-    <div class="cta-inner">
-      <svg class="cta-mark" viewBox="0 0 1114 1117" aria-hidden="true"><use href="#oq-mark"/></svg>
-      <h2>Open a drawing.<br>Ask it anything.</h2>
-      <p class="sec-sub">The drawing register, the linked 3D model and the full benchmark report — one click.</p>
-      <a class="btn-primary btn-lg" href="/app">Open the app <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M2 10 10 2M4 2h6v6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></a>
+<!-- ================================================================ closer -->
+<section class="sec closer-sec" aria-labelledby="c-title">
+  <div class="wrap">
+    <div class="closer">
+      <svg class="closer-mark" viewBox="0 0 1114 1117" aria-hidden="true"><use href="#oq-mark"/></svg>
+      <div class="eyebrow">Ready when you are / no sign-up</div>
+      <h2 id="c-title" class="display">Open a drawing. <span>Ask it anything.</span></h2>
+      <p class="desc">The drawing register, the linked 3D model and the full test report are one click away.</p>
+      <a class="btn btn-primary btn-lg" href="/app">Explore<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
     </div>
   </div>
 </section>
 
 </main>
 
-<!-- FOOTER -->
 <footer class="foot">
-  <div class="foot-inner">
-    <div class="foot-brand">
-      <svg class="nav-mark" viewBox="0 0 1114 1117" aria-hidden="true"><use href="#oq-mark"/></svg>
-      <svg class="nav-wm" viewBox="0 0 4792 750" role="img" aria-label="OQVAR"><use href="#oq-wm"/></svg>
-    </div>
-    <div class="foot-meta">
-      <span>Junction 2026 · Stoa — Make Blueprints Talk</span>
-      <span>Drawings: Stoa dataset · licence shown per sheet in the app</span>
-    </div>
+  <div class="wrap foot-in">
+    <a class="nav-brand" href="/" aria-label="OQVAR home">
+      <svg class="lk-mark" viewBox="0 0 1114 1117" aria-hidden="true"><use href="#oq-mark"/></svg>
+      <svg class="lk-wm" viewBox="0 0 4792 750" aria-hidden="true"><use href="#oq-wm"/></svg>
+    </a>
+    <p>Junction 2026 · Stoa challenge “Make Blueprints Talk”</p>
+    <p>Drawings from Stoa’s dataset · the licence credit is under each sheet in the app</p>
   </div>
 </footer>
 
-<script src="/web/landing.js" defer></script>
+<script src="/web/landing.js?v=fe4816e5" defer></script>
 </body>
 </html>
