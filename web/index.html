@@ -43,6 +43,7 @@
       <div class="tools">
         <select id="sheet-select" class="hidden" aria-label="Sheet of this drawing"></select>
         <div class="seg" id="view-seg"><button data-view="sheet" class="on">Sheet</button><button data-view="3d" id="btn-3d">3D model</button></div>
+        <div class="seg"><button id="btn-graph" aria-pressed="false" title="Show how the rooms connect: doors, open connections and shared walls">Room graph</button><button id="btn-heat" aria-pressed="false" title="Colour every mark by how it was established: green direct, amber inferred, red needs sign-off">Confidence</button><button id="btn-split" aria-pressed="false" title="Put a second sheet beside this one: another sheet of the set, a storey or the legend">Split</button></div>
         <div class="zoom"><button id="z-out" aria-label="Zoom out">−</button><output id="z-val">100%</output><button id="z-in" aria-label="Zoom in">+</button><button id="z-fit">Fit</button></div>
       </div>
     </header>
