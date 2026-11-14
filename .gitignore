@@ -1,0 +1,23 @@
+# Stoa dataset (~12 GB, licensed per file) — download it locally, never commit it
+junction-dataset/
+*.zip
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node
+node_modules/
+.next/
+
+# Local env / OS
+.env
+.env.local
+.DS_Store
+Thumbs.db
+
+# Analysis outputs — previews built from licensed dataset drawings; keep scripts only
+_analysis/*.jpg
+_analysis/*.png
