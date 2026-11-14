@@ -59,6 +59,41 @@ Stoa's dataset has about 14,000 drawings in about 30 languages and **about 127,0
 
 Our plan follows these numbers: **counts on raster plans are where the score is**, areas come second, and DXF/IFC give us accurate ground truth for both answers and 3D.
 
+## Q&A engine: `stoa_qa` (all languages) ✅
+
+`stoa_qa/` answers Stoa's questions **in every language they're asked in** and returns each answer with its evidence: the polygons or IFC GlobalIds that the viewer highlights. It has no LLM and no network calls, and runs on a laptop CPU, so these answers cost €0 per question.
+
+```text
+question (any language) ─▶ lang.py: object class + quantity + scope (multilingual keyword stems)
+                         ─▶ router.py: pick the solver by source
+                               ├─ swiss.py  DXF: rooms, apartments, doors, windows, fixture symbols
+                               └─ ifc.py    IFC: rooms, storeys, elements, quantity sets / geometry
+                         ─▶ Answer(value, unit, confidence, method, evidence[polygon | IFC GlobalId])
+```
+
+**Full question set, all languages** (counts exact, areas/lengths/volumes within 2%):
+
+| Source | Languages | Questions | Accuracy | Speed |
+| --- | --- | --- | --- | --- |
+| `swiss_dwellings` (DXF) | EN, DE, FR, IT | 37,584 | **99.49%** | 6 ms/question |
+| `ifc_models` (IFC, and the PDF plans rendered from it) | EN, DE, NL, DA, ET, ES, PL, RO, IT | 3,062 | **99.90%** | 63 ms/question |
+
+Swiss by question type: room-label counts, room areas, label areas, doors, windows, apartments and showers are 100%; WC 99.9%, bathtubs 99.6%, washbasins 99.5%, floor area 97.3%, apartment area 96.9%. **Fixtures (WC, washbasin, bathtub, shower) are classified from the raw `FIXTURE` geometry**: each symbol is a rectangle, identified by what is inside it (ellipse = WC, ellipse + dot = washbasin, 69-point rounded inner outline = bathtub, 5-point inner outline = shower).
+
+IFC by question type: every category is 100% except named-room area (99.9%) and storey total area (98.7%). Lengths are converted from the model's units (some models store millimetres), IFC2X3 `IfcFlowTerminal`s are typed through their type object (lights, sanitary), and stairs split into riser parts are counted once.
+
+Remaining misses: some unlabelled numbered rooms in Swiss plans are shafts that should be excluded. The PDF fill colour can tell them apart (`_analysis/swiss_pdf_fill.py`).
+
+```bash
+uv sync                                                        # Python 3.12 env with ezdxf, shapely, ifcopenshell, pymupdf
+uv run python -m stoa_qa.eval --source swiss_dwellings         # full Swiss set, ~4 min
+uv run python -m stoa_qa.eval --source ifc_models              # full IFC set, ~3 min
+uv run python -m stoa_qa.eval --source swiss_dwellings --limit 50   # quick check on 50 random floors
+uv run python -m stoa_qa.eval --sample 2000                    # stratified sample across sources × types
+```
+
+Predictions and per-intent failures are written to `eval_out/` (gitignored). The dataset is found at `junction-dataset/junction-dataset/` (same as SETUP.md); `STOA_DATASET=/path` overrides it.
+
 ## Blueprint → 3D: working prototype ✅
 
 `blueprint3d/` turns **DXF floor plans**, **IFC building models** and **raster scans** into a **linked 2D + 3D model** you can ask questions about.
@@ -75,7 +110,7 @@ model.ifc ──ifc_to_scene.py────▶ scene.json ─┘    click / ask 
 | 3D comes from | extruding plan polygons (heights assumed, shown on screen) | the BIM model itself, via `web-ifc` (nothing assumed) | walls, rooms, doors, windows and fixtures predicted by the CubiCasa5K network, then extruded; labelled **APPROXIMATE** |
 | 2D comes from | the DXF vector drawing | a plan projection of the selected storey's 3D geometry, plus the dataset's rendered storey plan | the traced vectors, plus the original scan |
 | Facts come from | DXF layers + polygon geometry | IFC entities, spatial containment, quantity sets; room geometry when quantities are missing | network detections (rooms by type, icons by class) |
-| Accuracy on Stoa's questions | **99.2%** (15,371 / 15,493) | **98.9%** (1,607 / 1,625) | **50.2%** exact on held-out test plans (2,842 questions) |
+| Accuracy on Stoa's questions | **99.2%** English (15,371 / 15,493); **99.49%** all languages via `stoa_qa` (37,392 / 37,584) | **98.9%** English (1,607 / 1,625); **99.90%** all languages via `stoa_qa` (3,059 / 3,062) | **50.2%** exact on held-out test plans (2,842 questions) |
 
 ### DXF accuracy
 
@@ -93,7 +128,7 @@ model.ifc ──ifc_to_scene.py────▶ scene.json ─┘    click / ask 
 | Apartment net area | 1,798 / 1,875 | 95.9% |
 | **All** | **15,371 / 15,493** | **99.2%** |
 
-Not covered yet: fixture counts (WC, washbasin, bathtub, shower), which need symbol classification on the `FIXTURE` layer.
+Fixture counts (WC, washbasin, bathtub, shower) and the German/French/Italian questions are answered by `stoa_qa/swiss.py`; see [Q&A engine](#qa-engine-stoa_qa-all-languages-).
 
 ### IFC accuracy
 
@@ -231,7 +266,7 @@ UI: question box │ 2D viewer with highlights │ 3D viewer with linked highlig
 | 3D viewer | three.js + web-ifc (built) | Extruded DXF plans and native IFC in the browser |
 | API & processing | Python + FastAPI | PDF, CAD, CV and geometry tooling |
 | Vector/CAD | `ezdxf`, `shapely`, PyMuPDF | Exact geometry, text and scale from DXF/PDF |
-| BIM | Own stdlib IFC/STEP reader (built); IfcOpenShell optional | IFC storeys, spaces, quantities, room geometry areas |
+| BIM | Own stdlib IFC/STEP reader (`blueprint3d`, viewer); IfcOpenShell (`stoa_qa`, answers) | IFC storeys, spaces, quantities, room geometry areas, unit scaling |
 | 3D generation | `trimesh` (+ Blender headless for renders) | 2D polygons → 3D `.glb` |
 | CV | YOLO-style detector / segmentation model fine-tuned on CubiCasa labels | Door/window/room counts on raster plans |
 | OCR | PaddleOCR / Tesseract (+ LLM vision fallback) | Multilingual labels, schedules, title blocks |
@@ -239,17 +274,19 @@ UI: question box │ 2D viewer with highlights │ 3D viewer with linked highlig
 
 ## Junction hackerpack tools
 
-> ⚠️ **To confirm:** the hackerpacks page (`hackjunction.app/participate/45/hackerpacks`) needs a sign-in and hasn't been checked yet. The list below is our current shortlist from the Junction 2026 partner/prize list. Update it once someone has read the actual hackerpacks.
+Checked against the actual hackerpacks and tech challenges on 2026-11-14. These are the side challenges we plan to enter, in priority order:
 
-| Tool | How we'd use it in Make Blueprints Talk |
-| --- | --- |
-| **Gemini** | Multimodal model for routing questions, multilingual understanding, and vision fallback on hard sheets |
-| **Modal / Verda** | GPU jobs: batch CV inference over ~14k drawings, fine-tuning the door/window detector, IFC/DXF → glTF conversion |
-| **Cloudinary** | Serving sheet tiles and thumbnails, cropping and annotating evidence regions |
-| **Aiven / MariaDB** | Drawing index: elements, polygons, text, source IDs, plus evaluation results |
-| **IronShard** | Storing processed drawings, generated `.glb` models and model checkpoints |
-| **Codex** | Coding assistant during the build |
-| **CRACI** | CI with reproducible builds and supply-chain visibility |
+| Tech challenge (prize) | Its role in Make Blueprints Talk | Status |
+| --- | --- | --- |
+| **Gemini API** (€4k + GCP credits) | Vision fallback on raster sheets (returns boxes, which become evidence highlights) and the "frontier model only" baseline | API key working |
+| **Modal** ($2k + credits) | Fine-tune the CubiCasa detector on GPU, batch-index all drawings, host the demo API | CLI logged in; secret `stoa-keys` created |
+| **Gemma** (€1k, top 3) | Small fine-tuned model that turns a question into a solver call, for low inference cost | Planned |
+| **Cloudinary** ($500 per member) | Evidence crops and annotated overlays generated on the fly; sheet tiles | Planned |
+| **Aiven** (€1k) | Postgres + PostGIS store for the drawing graph (map-style queries: "doors inside room X") | Planned |
+| **CRACI** (LEGO + interview) | CI runs `stoa_qa.eval` on every push and blocks merges that lower accuracy | Planned |
+| Nemotron VL, ElevenLabs | Optional: a second vision model for the agreement-based confidence check; voice questions on site | If time |
+
+Credits: Gemini (one form per team, 18+), Modal (code `VVX-2QX-8HW`, $100 per person), Anthropic ($20 per person), Aiven ($50), Cloudinary (survey form), CRACI (invite code in #craci), IronShard (`JUNCTION26`, dataset and model storage), Featherless (`JUNCTION26`, hosted Gemma).
 
 Rule: we only enter a side prize if the tool is actually part of the working demo.
 
@@ -264,12 +301,15 @@ The dataset comes with an official question set, so we measure ourselves on it f
 
 ## Milestones
 
-- [ ] Data loader for `questions.jsonl` and a stratified evaluation harness with baseline numbers.
-- [x] IFC path: spaces, areas and quantities → answers (98.9%); real BIM geometry in the linked 3D viewer.
-- [x] DXF path (swiss_dwellings): room polygons → counts/areas (99.2%); extrusion → linked 3D viewer.
-- [ ] Fixture symbol classification (WC, washbasin, bathtub, shower) on the DXF `FIXTURE` layer.
-- [ ] Raster path (cubicasa5k): door/window/room detection + Finnish OCR → counts.
-- [ ] LLM router with tools; multilingual question handling.
+- [x] Data loader for `questions.jsonl` and an evaluation harness (`stoa_qa/eval.py`: full, per-source, stratified sample).
+- [x] IFC path: spaces, areas and quantities → answers (99.90% all languages); real BIM geometry in the linked 3D viewer.
+- [x] DXF path (swiss_dwellings): room polygons → counts/areas (99.49% all languages); extrusion → linked 3D viewer.
+- [x] Fixture symbol classification (WC, washbasin, bathtub, shower) on the DXF `FIXTURE` layer (99.5–100%).
+- [x] Multilingual questions without an LLM (`stoa_qa/lang.py`, 10 languages).
+- [ ] Raster path (cubicasa5k): door/window/room detection + Finnish OCR → counts (50.2% with the pretrained network so far).
+- [ ] Gemini vision baseline on cubicasa5k (the "frontier model only" comparison).
+- [ ] One answer API: viewer calls `stoa_qa` so every format shares the same answers and evidence.
+- [ ] LLM router (Gemma) for free-form questions; `ifc_bench` text answers.
 - [ ] UI: question → answer → 2D highlight; linked 3D highlight.
 - [ ] Uncertainty handling and "no answer" responses.
 - [ ] Two-minute live demo + accuracy slide against the baseline.
@@ -311,6 +351,8 @@ py -m http.server 8765                      # open http://localhost:8765/bluepri
 ```
 
 Raster plans (CubiCasa5K network) need a venv, PyTorch and the model weights: see SETUP.md step 4.
+
+The multilingual Q&A engine uses [uv](https://docs.astral.sh/uv/) (`uv sync`, then `uv run python -m stoa_qa.eval --source swiss_dwellings --limit 50`); see [Q&A engine](#qa-engine-stoa_qa-all-languages-). Secrets go in `.env` (gitignored): `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`.
 
 ## Useful links
 

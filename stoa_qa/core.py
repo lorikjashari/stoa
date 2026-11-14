@@ -5,9 +5,12 @@ import os
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 
-DATASET = Path(os.environ.get(
-    "STOA_DATASET",
-    Path(__file__).resolve().parent.parent / "junction-dataset/full/junction-dataset",
+_REPO = Path(__file__).resolve().parent.parent
+# Same location as blueprint3d/ and SETUP.md step 2; STOA_DATASET overrides it.
+DATASET = Path(os.environ.get("STOA_DATASET") or next(
+    (p for p in (_REPO / "junction-dataset/junction-dataset", _REPO / "junction-dataset/full/junction-dataset")
+     if (p / "questions.jsonl").is_file()),
+    _REPO / "junction-dataset/junction-dataset",
 ))
 
 
