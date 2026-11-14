@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blueprint 3D</title>
+<style>
+  :root {
+    --bg: #0f1216; --panel: #161b21; --line: #2a323c; --text: #e6e9ee; --muted: #8b95a3;
+    --accent: #ffb020; --accent-soft: rgba(255,176,32,.18); --ok: #3fb68b; --warn: #e5a23c;
+    --wall: #d9dde3; --paper: #f7f6f2; --ink: #23272e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; gap: 12px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  header h1 { font-size: 15px; margin: 0 8px 0 0; letter-spacing: .02em; }
+  header h1 span { color: var(--accent); }
+  select, input, button { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px 10px; }
+  button { cursor: pointer; } button:hover { border-color: var(--accent); }
+  #ask { flex: 1; min-width: 260px; display: flex; gap: 6px; }
+  #ask input { flex: 1; }
+  main { display: grid; grid-template-columns: 1fr 1fr; height: calc(100% - 54px - 120px); min-height: 360px; }
+  .pane { position: relative; border-right: 1px solid var(--line); overflow: hidden; }
+  .pane-title { position: absolute; top: 8px; left: 10px; z-index: 2; font-size: 12px; color: var(--muted);
+    display: flex; gap: 6px; align-items: center; }
+  .pane-title button { padding: 2px 8px; font-size: 12px; }
+  .pane-title button.on { border-color: var(--accent); color: var(--accent); }
+  #plan { width: 100%; height: 100%; background: var(--paper); cursor: grab; display: block; }
+  #orig { position: absolute; inset: 0; background: var(--paper); display: none; align-items: center; justify-content: center; }
+  #orig img { max-width: 100%; max-height: 100%; }
+  #three { width: 100%; height: 100%; display: block; }
+  #tip { position: fixed; pointer-events: none; background: #000c; padding: 4px 8px; border-radius: 4px; font-size: 12px; display: none; z-index: 9; }
+  footer { height: 120px; display: grid; grid-template-columns: 1.4fr 1fr; border-top: 1px solid var(--line); }
+  #answer, #info { padding: 10px 16px; overflow: auto; }
+  #info { border-left: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+  #answer .big { font-size: 20px; font-weight: 600; color: var(--accent); }
+  #answer .method { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .assume { position: absolute; bottom: 8px; left: 10px; font-size: 11px; color: var(--warn); background: #0009; padding: 3px 8px; border-radius: 4px; }
+  .room-label { font: 600 .32px system-ui; fill: var(--ink); pointer-events: none; text-anchor: middle; }
+  .room-area { font: .26px system-ui; fill: #555; pointer-events: none; text-anchor: middle; }
+  .ifc-only { display: none; } body.ifc .ifc-only { display: inline-block; }
+  svg .hl { stroke: var(--accent) !important; stroke-width: .08 !important; fill: #ffb02099 !important; }
+  svg .room.hl { fill: #ffb02055 !important; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; height: 900px; } footer { grid-template-columns: 1fr; height: auto; } }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<header>
+  <h1>Blueprint<span>3D</span></h1>
+  <select id="scene" title="Drawing"></select>
+  <select id="storey" title="Storey" class="ifc-only"></select>
+  <form id="ask"><input id="q" placeholder="Ask: How many doors? · Area of room 2.10? · Area of apartment B? · How many 'Zimmer'?" autocomplete="off"><button>Ask</button></form>
+  <button id="glb" title="Download the 3D model as .glb (opens in Blender)">Export .glb</button>
+</header>
+<main>
+  <section class="pane">
+    <div class="pane-title">2D <button id="tab-vec" class="on">Vector plan</button><button id="tab-orig">Original drawing</button></div>
+    <svg id="plan"></svg>
+    <div id="orig"><img alt="Original drawing"></div>
+  </section>
+  <section class="pane">
+    <div class="pane-title">3D <button id="xray">X-ray</button><button id="isolate" class="ifc-only" title="Show only the selected storey">Isolate storey</button><button id="topview">Top</button><button id="reset">Reset</button></div>
+    <canvas id="three"></canvas>
+    <div class="assume" id="assume"></div>
+  </section>
+</main>
+<footer>
+  <div id="answer"><span style="color:var(--muted)">Ask a question, or click any room, door or window in either view.</span></div>
+  <div id="info"></div>
+</footer>
+<div id="tip"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

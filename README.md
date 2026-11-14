@@ -59,24 +59,136 @@ Stoa's dataset has about 14,000 drawings in about 30 languages and **about 127,0
 
 Our plan follows these numbers: **counts on raster plans are where the score is**, areas come second, and DXF/IFC give us accurate ground truth for both answers and 3D.
 
-## Blueprint → 3D: is it possible?
+## Blueprint → 3D: working prototype ✅
 
-**Yes, and part of it is close to free.** How much work it takes depends on the format:
+`blueprint3d/` turns **DXF floor plans**, **IFC building models** and **raster scans** into a **linked 2D + 3D model** you can ask questions about.
+
+```text
+plan.dxf  ──dxf_to_scene.py────▶ scene.json ─┐
+plan.png  ──raster_to_scene.py─▶ scene.json ─┼─ viewer (three.js) ─▶ 2D plan ⇄ 3D model ─▶ .glb (Blender)
+model.ifc ──ifc_to_scene.py────▶ scene.json ─┘    click / ask → same element highlighted in both views
+     └──────── web-ifc (browser) ─▶ real BIM geometry, keyed by the same IFC entity IDs
+```
+
+| | DXF (`swiss_dwellings`) | IFC (`ifc_models`) | Raster (`cubicasa5k`) |
+| --- | --- | --- | --- |
+| 3D comes from | extruding plan polygons (heights assumed, shown on screen) | the BIM model itself, via `web-ifc` (nothing assumed) | walls, rooms, doors, windows and fixtures predicted by the CubiCasa5K network, then extruded; labelled **APPROXIMATE** |
+| 2D comes from | the DXF vector drawing | a plan projection of the selected storey's 3D geometry, plus the dataset's rendered storey plan | the traced vectors, plus the original scan |
+| Facts come from | DXF layers + polygon geometry | IFC entities, spatial containment, quantity sets; room geometry when quantities are missing | network detections (rooms by type, icons by class) |
+| Accuracy on Stoa's questions | **99.2%** (15,371 / 15,493) | **98.9%** (1,607 / 1,625) | **50.2%** exact on held-out test plans (2,842 questions) |
+
+### DXF accuracy
+
+**Measured on Stoa's own ground truth.** The 3D model is built from the same scene that answers the questions, so this accuracy is also how accurate the 3D model is:
+
+| `swiss_dwellings`, 1,040 floor plans, English questions | Correct | Accuracy |
+| --- | --- | --- |
+| Rooms by label ("How many 'Zimmer'?") | 6,365 / 6,365 | 100% |
+| Room net area | 2,076 / 2,076 | 100% |
+| Doors | 1,040 / 1,040 | 100% |
+| Windows | 1,040 / 1,040 | 100% |
+| Total area of a room label | 1,017 / 1,017 | 100% |
+| Apartments | 1,026 / 1,040 | 98.7% |
+| Total indoor floor area | 1,009 / 1,040 | 97.0% |
+| Apartment net area | 1,798 / 1,875 | 95.9% |
+| **All** | **15,371 / 15,493** | **99.2%** |
+
+Not covered yet: fixture counts (WC, washbasin, bathtub, shower), which need symbol classification on the `FIXTURE` layer.
+
+### IFC accuracy
+
+`ifc_models`, 29 models, English questions (counts exact, quantities within 2%):
+
+| Question | Correct | Accuracy |
+| --- | --- | --- |
+| Net floor area of a named room on a storey | 1,179 / 1,183 | 99.7% |
+| Doors / windows / walls / columns per storey | 121 / 121 | 100% |
+| Wall length, wall net side area, wall and slab net volume per storey | 133 / 133 | 100% |
+| Doors / windows / walls / beams / columns in the whole model | 85 / 85 | 100% |
+| Total room area per storey | 38 / 40 | 95.0% |
+| Stairs (per storey / whole model) | 47 / 50 | 94.0% |
+| Sanitary fixtures / unsupported wording | 4 / 13 | — |
+| **All** | **1,607 / 1,625** | **98.9%** |
+
+About 730 of those rooms have **no stored area** in the IFC file. Their areas come from the room geometry: the profile of an extruded solid, or the plan-projected floor faces of a Brep. All of this uses only the Python standard library, no geometry kernel.
+
+### Raster (scanned plans): pretrained CubiCasa5K network
+
+`raster_to_scene.py` runs the **CubiCasa5K multi-task network** (Kalervo et al., SCIA 2019; code in `third_party/CubiCasa5k`, CC BY-NC 4.0). It predicts wall junctions, 12 room classes and 11 icon classes, which become walls, typed rooms (bedroom, kitchen, bath…), doors, windows and fixtures (toilet, sink, bathtub, sauna bench) in the same `scene.json`. The scale comes from the detected doors (0.9 m). The 3D model is approximate, and the viewer says so.
+
+**Fair evaluation.** Stoa's cubicasa5k images are byte-identical to CubiCasa5K's `F1_original.png` files, and the network was trained on CubiCasa's train split. So we score **only the 387 test-split plans it never saw** (`eval_cubicasa_model.py --split test`, 2,842 questions):
+
+| Question | Exact | ±1 | OpenCV baseline (exact) |
+| --- | --- | --- | --- |
+| Saunas | 85.3% | 100% | — |
+| Kitchens | 83.2% | 99.2% | — |
+| Toilets | 70.7% | 92.0% | — |
+| Bathrooms | 61.2% | 93.3% | — |
+| Balconies | 60.0% | 84.0% | — |
+| Bedrooms | 54.4% | 84.5% | — |
+| Sinks | 47.4% | 79.1% | — |
+| Doors | 33.5% | 68.0% | 4–10% |
+| Windows | 30.2% | 54.8% | 0–20% |
+| Showers + bathtubs | 6.3% | 80.3% | — |
+| **All** | **50.2%** | | |
+
+That's a large step up from the hand-tuned OpenCV baseline (`--engine opencv`), but far from the ~99% we get on DXF and IFC. Known gaps:
+- **Showers:** the network has no shower class, so "showers and bathtubs" is almost always undercounted.
+- **Doors and windows:** neighbouring openings merge or split during vectorisation.
+- **Room types:** the Finnish labels on the drawings (MH, KPH, WC, S) aren't read yet. OCR would both fix room types and separate WC rooms from bathrooms.
+- **Floors per plan:** not attempted.
+
+**Run it**
+
+```bash
+# 1. convert drawings/models to scenes (DXF/IFC: Python standard library only)
+py -I blueprint3d/dxf_to_scene.py junction-dataset/junction-dataset/data/swiss_dwellings/site1000_bldg2082_floor9385.dxf
+py -I blueprint3d/ifc_to_scene.py junction-dataset/junction-dataset/data/ifc_models/kit-fzk-haus_ac20-fzk-haus.ifc
+#    raster needs the venv + CubiCasa5K weights (see "Local setup" below); --engine opencv for the baseline
+.venv/Scripts/python -W ignore blueprint3d/raster_to_scene.py junction-dataset/junction-dataset/data/cubicasa5k/high_quality-10004.png
+
+# 2. serve the repo root and open the viewer (or use the "blueprint3d" entry in .claude/launch.json)
+py -m http.server 8765
+#    → http://localhost:8765/blueprint3d/viewer/
+
+# 3. reproduce the accuracy tables
+py -I blueprint3d/eval_swiss.py
+py -I blueprint3d/eval_ifc.py
+.venv/Scripts/python -W ignore blueprint3d/eval_cubicasa_model.py --split test   # network, held-out plans
+.venv/Scripts/python blueprint3d/eval_raster.py --per-style 40                     # OpenCV baseline
+```
+
+**Viewer features**
+
+- 2D plan and 3D model side by side, plus an "Original drawing" tab showing the source PNG (DXF) or the rendered storey plan (IFC).
+- Click any room, wall, door or window in either view to highlight it in both. The panel shows its ID, source layer or IFC class, storey, and computed quantities.
+- Ask in English, German or French (IFC also takes Danish and Dutch keywords). Answers highlight the evidence in both views and say how they were computed. Questions it can't answer get "I can't answer that" rather than a guess.
+- IFC: a storey picker, an **Isolate storey** toggle, and auto-jump to the storey that holds the evidence.
+- X-ray mode (see-through walls), top view, and **Export .glb** to open the model in Blender.
+- DXF only: assumed heights (storey 2.6 m, door head 2.1 m, window 0.9–2.1 m) are always shown on screen. IFC needs no assumptions.
+
+### Routes by format
+
+How much work 3D takes depends on the format:
 
 | Input | 2D → 3D route | Accuracy | Effort |
 | --- | --- | --- | --- |
-| **IFC** | Already a 3D model. Convert to glTF with IfcOpenShell / `IfcConvert`, or load in the browser with `web-ifc` | Exact | Low |
-| **DXF** (swiss_dwellings, opening_design) | `ezdxf` reads the wall/room layers, `shapely` builds polygons, then we extrude to storey height with `trimesh` (or Blender) and export `.glb` | High (real geometry) | Medium |
-| **Raster PNG/PDF** (cubicasa5k, scans) | CV wall/door/window segmentation, vectorise to polygons, extrude | Approximate, labelled as such | High |
+| **IFC** | ✅ **Built**: `web-ifc` streams the real geometry into three.js; `ifc_to_scene.py` supplies storeys, rooms, quantities | Exact (98.9% on ground truth) | Done |
+| **DXF** (swiss_dwellings, opening_design) | ✅ **Built**: read the `WALL` / `ROOM_OUTLINE` / `DOOR` / `WINDOW` / `UNIT_OUTLINE` layers, extrude in three.js, export `.glb` | Exact (99.2% on ground truth) | Done |
+| **Raster PNG/JPG** (cubicasa5k, scans) | ✅ **Built**: CubiCasa5K network → walls, typed rooms, doors, windows, fixtures → extrude (`raster_to_scene.py`; `--engine opencv` baseline) | Approximate, labelled as such; 50.2% on held-out test plans | Next: OCR of room labels, shower class |
 
 Rules for 3D:
 
 - **Every 3D object keeps the ID of its 2D source** (room polygon, wall segment, IFC GlobalId). That shared ID is what links the two views.
 - **Heights we assume are shown in the UI** (e.g. "storey height assumed 2.7 m"). A 2D plan alone doesn't give you volume, so we never present an assumed height as fact.
-- **Blender is optional.** Headless Blender (`blender -b -P extrude.py`) is good for polished renders and a demo video, but the live pipeline uses plain Python (`ezdxf` + `shapely` + `trimesh` → glTF) so it runs on a server without a GPU or Blender install.
-- **Browser viewer:** Three.js / react-three-fiber for the extruded plans, and That Open Engine (`@thatopen/components`, formerly IFC.js) for native IFC.
+- **Blender is optional.** The live pipeline is plain Python (no dependencies) plus three.js in the browser, so it runs anywhere. Click **Export .glb**, then in Blender use *File → Import → glTF* for polished renders and the demo video. Element IDs are kept as object names.
+- **Browser viewer:** three.js for all three formats, with web-ifc streaming native IFC geometry.
 
-Scope: 3D only needs to work well for DXF and IFC drawings. Raster-to-3D is a stretch goal; if we get there it's labelled "approximate".
+Next steps for 3D, in priority order:
+
+1. **Raster accuracy** (`cubicasa5k`, which has 85k questions): add OCR of the Finnish room labels (MH, KPH, WC, S) to fix room types and split WC rooms from bathrooms, handle showers, and tune opening vectorisation. Same `scene.json`, same viewer.
+2. **`ifc_bench`** (820 free-text questions on 30 more IFC models): the same reader, plus an LLM that writes the answer from the extracted facts.
+3. **opening_design DXF/DWG:** their layer names differ from the Swiss ones, so they need a layer-mapping table.
 
 ## Supported questions (first version)
 
@@ -116,10 +228,10 @@ UI: question box │ 2D viewer with highlights │ 3D viewer with linked highlig
 | --- | --- | --- |
 | UI | Next.js / React | Question interface and 2D/3D viewers |
 | 2D viewer | PDF.js / OpenSeadragon | Deep zoom and highlight overlays on large sheets |
-| 3D viewer | Three.js / react-three-fiber, That Open Engine | Extruded plans and native IFC in the browser |
+| 3D viewer | three.js + web-ifc (built) | Extruded DXF plans and native IFC in the browser |
 | API & processing | Python + FastAPI | PDF, CAD, CV and geometry tooling |
 | Vector/CAD | `ezdxf`, `shapely`, PyMuPDF | Exact geometry, text and scale from DXF/PDF |
-| BIM | IfcOpenShell | IFC spaces, quantities, glTF export |
+| BIM | Own stdlib IFC/STEP reader (built); IfcOpenShell optional | IFC storeys, spaces, quantities, room geometry areas |
 | 3D generation | `trimesh` (+ Blender headless for renders) | 2D polygons → 3D `.glb` |
 | CV | YOLO-style detector / segmentation model fine-tuned on CubiCasa labels | Door/window/room counts on raster plans |
 | OCR | PaddleOCR / Tesseract (+ LLM vision fallback) | Multilingual labels, schedules, title blocks |
@@ -153,8 +265,9 @@ The dataset comes with an official question set, so we measure ourselves on it f
 ## Milestones
 
 - [ ] Data loader for `questions.jsonl` and a stratified evaluation harness with baseline numbers.
-- [ ] IFC path: spaces, areas and quantities → answers; IFC → glTF in the 3D viewer.
-- [ ] DXF path (swiss_dwellings): room polygons → counts/areas; extrusion → 3D.
+- [x] IFC path: spaces, areas and quantities → answers (98.9%); real BIM geometry in the linked 3D viewer.
+- [x] DXF path (swiss_dwellings): room polygons → counts/areas (99.2%); extrusion → linked 3D viewer.
+- [ ] Fixture symbol classification (WC, washbasin, bathtub, shower) on the DXF `FIXTURE` layer.
 - [ ] Raster path (cubicasa5k): door/window/room detection + Finnish OCR → counts.
 - [ ] LLM router with tools; multilingual question handling.
 - [ ] UI: question → answer → 2D highlight; linked 3D highlight.
@@ -189,9 +302,17 @@ In under two minutes a judge asks a real question (in English or Finnish) and:
 
 ## Local setup
 
-The repo is still at kickoff. Setup commands will be added once the frontend/backend structure exists. The dataset (`junction-dataset/`) isn't committed. Download the preview from Stoa's link in the challenge brief.
+**Full step-by-step guide: [SETUP.md](SETUP.md).** It's written so a teammate, or their coding agent, can follow it from a fresh clone. Quick version:
+
+```bash
+# dataset unzipped to junction-dataset/junction-dataset/... (see SETUP.md step 2), then:
+py -I blueprint3d/build_demo_scenes.py      # DXF + IFC scenes, standard library only
+py -m http.server 8765                      # open http://localhost:8765/blueprint3d/viewer/
+```
+
+Raster plans (CubiCasa5K network) need a venv, PyTorch and the model weights: see SETUP.md step 4.
 
 ## Useful links
 
 - [Junction 2026](https://hackjunction.com/)
-- [IfcOpenShell](https://ifcopenshell.org/) · [That Open Engine](https://thatopen.com/) · [ezdxf](https://ezdxf.mozman.de/) · [trimesh](https://trimesh.org/)
+- [web-ifc](https://github.com/ThatOpen/engine_web-ifc) · [three.js](https://threejs.org/) · [IfcOpenShell](https://ifcopenshell.org/) · [ezdxf](https://ezdxf.mozman.de/)
