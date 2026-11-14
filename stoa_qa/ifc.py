@@ -137,7 +137,7 @@ def _longest_in(text: str, names) -> str | None:
 
 
 def _ev(m: Model, els, label_fn=lambda e: e.Name or e.is_a()):
-    return [Evidence("ifc", e.GlobalId, label_fn(e)) for e in els]
+    return [Evidence("ifc", e.GlobalId, label_fn(e), viewer_id=e.id()) for e in els]
 
 
 def answer(path: str, question: str) -> Answer:
@@ -164,13 +164,13 @@ def answer(path: str, question: str) -> Answer:
             sp = key_to_space[key]
             a, how = m.space_area(sp)
             return Answer(round(a, 2) if a else None, "m2", "room_area", 0.95 if a else 0.0,
-                          f"room '{key}' {where}: {how}", [Evidence("ifc", sp.GlobalId, key, a)], src)
+                          f"room '{key}' {where}: {how}", [Evidence("ifc", sp.GlobalId, key, a, viewer_id=sp.id())], src)
         tot, ev = 0.0, []
         for sp in spaces:
             a, _ = m.space_area(sp)
             if a:
                 tot += a
-                ev.append(Evidence("ifc", sp.GlobalId, sp.LongName or sp.Name or "space", round(a, 2)))
+                ev.append(Evidence("ifc", sp.GlobalId, sp.LongName or sp.Name or "space", round(a, 2), viewer_id=sp.id()))
         return Answer(round(tot, 2), "m2", "total_space_area", 0.85, f"sum of {len(ev)} IfcSpace areas {where}", ev, src)
 
     cls = next((c for c in PRIORITY if c in objs), None)
@@ -182,15 +182,15 @@ def answer(path: str, question: str) -> Answer:
         vols = [(e, m.volume(e)[0]) for e in els]
         return Answer(round(sum(v for _, v in vols), 2), "m3", f"{cls}_volume", 0.85,
                       f"sum of NetVolume (or mesh volume) of {len(els)} {CLASSES[cls][0]} {where}",
-                      [Evidence("ifc", e.GlobalId, e.Name or cls, round(v, 3)) for e, v in vols], src)
+                      [Evidence("ifc", e.GlobalId, e.Name or cls, round(v, 3), viewer_id=e.id()) for e, v in vols], src)
     if qty == "area":
         ars = [(e, m.wall_side_area(e)) for e in els]
         return Answer(round(sum(a for _, a in ars), 2), "m2", f"{cls}_side_area", 0.8,
                       f"sum of NetSideArea of {len(els)} {CLASSES[cls][0]} {where}",
-                      [Evidence("ifc", e.GlobalId, e.Name or cls, round(a, 3)) for e, a in ars], src)
+                      [Evidence("ifc", e.GlobalId, e.Name or cls, round(a, 3), viewer_id=e.id()) for e, a in ars], src)
     if qty == "length":
         ls = [(e, m.wall_length(e)) for e in els]
         return Answer(round(sum(v for _, v in ls), 2), "m", f"{cls}_length", 0.8,
                       f"sum of Length quantity of {len(els)} {CLASSES[cls][0]} {where}",
-                      [Evidence("ifc", e.GlobalId, e.Name or cls, round(v, 3)) for e, v in ls], src)
+                      [Evidence("ifc", e.GlobalId, e.Name or cls, round(v, 3), viewer_id=e.id()) for e, v in ls], src)
     return Answer(len(els), "count", f"{cls}_count", 0.9, f"{len(els)} {CLASSES[cls][0]} {where}", _ev(m, els), src)

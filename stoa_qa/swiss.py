@@ -205,7 +205,8 @@ def answer(path: str, question: str) -> Answer:
     src = f"data/swiss_dwellings/{stem}.dxf"
 
     def room_ev(rs):
-        return [Evidence("polygon", r.handle, f"{r.number or ''} {r.label or ''}".strip(), round(r.area, 3), _coords(r.poly)) for r in rs]
+        return [Evidence("polygon", r.handle, f"{r.number or ''} {r.label or ''}".strip(), round(r.area, 3), _coords(r.poly),
+                         f"room:{r.number or r.handle}") for r in rs]
 
     if (m := APT_Q.search(question)) and qty == "area":
         letter = m.group(1).upper()
@@ -216,7 +217,7 @@ def answer(path: str, question: str) -> Answer:
         rs = [r for r in fl.numbered if r.indoor_net and (r.label or "").lower() not in STAIRWELL and unit[1].contains(Point(r.anchor))]
         return Answer(round(sum(r.area for r in rs), 2), "m2", "apartment_area", 0.95,
                       f"sum of {len(rs)} indoor rooms inside apartment {letter} outline (DXF UNIT_OUTLINE)",
-                      [Evidence("polygon", unit[0], f"apartment {letter}", None, _coords(unit[1]))] + room_ev(rs), src)
+                      [Evidence("polygon", unit[0], f"apartment {letter}", None, _coords(unit[1]), f"unit:{unit[0]}")] + room_ev(rs), src)
 
     if (m := ROOM_Q.search(question)) and qty == "area":
         rs = [r for r in fl.rooms if r.number == m.group(1)]
@@ -246,13 +247,17 @@ def answer(path: str, question: str) -> Answer:
             if key == "apartments":
                 return Answer(len(fl.apt_tags), "count", "apartments", 0.97,
                               f"{len(fl.apt_tags)} apartment tags ({', '.join(sorted(l for l, _ in fl.apt_tags))})",
-                              [Evidence("text", f"apt-{l}", f"apartment {l}", None, [list(p)]) for l, p in fl.apt_tags], src)
+                              [Evidence("text", f"apt-{l}", f"apartment {l}", None, [list(p)],
+                                        next((f"unit:{h}" for h, u in fl.units if u.contains(Point(p))), None))
+                               for l, p in fl.apt_tags], src)
             if key in ("doors", "windows"):
                 items = fl.doors if key == "doors" else fl.windows
                 return Answer(len(items), "count", key, 0.97, f"{len(items)} {key[:-1]} symbols on DXF layer {key[:-1].upper()}",
-                              [Evidence("polygon", h, f"{key[:-1]} {i + 1}", None, _coords(p)) for i, (h, p) in enumerate(items)], src)
+                              [Evidence("polygon", h, f"{key[:-1]} {i + 1}", None, _coords(p), f"{key[:-1]}:{h}")
+                               for i, (h, p) in enumerate(items)], src)
             items = [f for f in fl.fixtures if FIXTURE_RULES[key](f)]
             return Answer(len(items), "count", key, 0.95, f"{len(items)} {key} symbols recognised on DXF layer FIXTURE",
-                          [Evidence("polygon", f["handle"], f"{key[:-1]} {i + 1}", None, _coords(f["poly"])) for i, f in enumerate(items)], src)
+                          [Evidence("polygon", f["handle"], f"{key[:-1]} {i + 1}", None, _coords(f["poly"]), f"fixture:{f['handle']}")
+                           for i, f in enumerate(items)], src)
 
     return Answer(None, None, "unknown", 0.0, "swiss: question not understood", source_file=src)

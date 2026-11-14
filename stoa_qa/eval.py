@@ -46,9 +46,15 @@ def main() -> None:
     ap.add_argument("--limit", type=int)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", default="eval_out")
+    ap.add_argument("--cubicasa-split", choices=["train", "val", "test"],
+                    help="keep only cubicasa5k plans from this CubiCasa split (test = held-out, the fair number)")
     args = ap.parse_args()
 
     rows = load(args.source)
+    if args.cubicasa_split:
+        from .cubicasa_gemini import split_members
+        members = split_members(args.cubicasa_split)
+        rows = [r for r in rows if source_of(r["path"]) != "cubicasa5k" or r["path"] in members]
     rnd = random.Random(args.seed)
     if args.sample:
         strata = collections.defaultdict(list)

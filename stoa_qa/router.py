@@ -3,12 +3,13 @@ from __future__ import annotations
 
 import traceback
 
-from . import ifc, swiss
+from . import cubicasa, ifc, swiss
 from .core import UNANSWERED, Answer, source_of
 
 SOLVERS = {
     "swiss_dwellings": swiss.answer,
     "ifc_models": ifc.answer,
+    "cubicasa5k": cubicasa.answer,
 }
 
 

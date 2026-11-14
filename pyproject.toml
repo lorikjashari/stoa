@@ -11,11 +11,35 @@ dependencies = [
   "numpy",
   "pillow",
   "python-dotenv",
+  "fastapi>=0.162.7",
+  "uvicorn[standard]>=0.54.0",
 ]
+
+[project.optional-dependencies]
+# Raster plans with the pretrained CubiCasa5K network (blueprint3d/cubicasa_model.py): uv sync --extra raster
+raster = [
+  "torch>=2.4",
+  "opencv-python-headless>=4.10",
+  "scipy>=1.13",
+  "scikit-image>=0.24",
+]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "modal>=1.6.4",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["stoa_qa"]

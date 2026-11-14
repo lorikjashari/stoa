@@ -563,11 +563,28 @@ function answerIFC(q) {
 function res(els, text, method) { return { text, method, ids: els.map((e) => e.id) }; }
 function none() { return { text: "I can't answer that from this drawing yet.", method: "No matching tool: answering would mean guessing, so I'm not.", ids: [] }; }
 
-$("#ask").onsubmit = (e) => {
+// Ask the stoa_qa API (multilingual engine, all formats) when the page is served by it
+// (uv run uvicorn stoa_qa.api:app); otherwise fall back to the in-browser answer() above.
+async function askApi(q) {
+  try {
+    const r = await fetch("/ask", { method: "POST", headers: { "content-type": "application/json" },
+                                    body: JSON.stringify({ path: S.source.file, question: q }) });
+    if (!r.ok) return null;
+    const d = await r.json();
+    const conf = d.confidence >= 0.9 ? "high" : d.confidence >= 0.6 ? "medium" : "low";
+    const exp = d.expected == null ? "" :
+      ` · Stoa's answer: <b>${d.expected}</b> ${String(d.expected) === String(d.value) ? "✓" : "✗"}`;
+    return { text: d.text, ids: d.ids.filter((i) => byId.has(i)),
+             method: `${d.method} · confidence ${conf} · ${d.latency_ms} ms${exp}`, engine: "stoa_qa API" };
+  } catch { return null; }
+}
+
+$("#ask").onsubmit = async (e) => {
   e.preventDefault();
-  const a = answer($("#q").value);
+  const q = $("#q").value;
+  const a = (await askApi(q)) ?? { ...answer(q), engine: "in-browser" };
   select(a.ids, a.ids.length ? `<b style="color:var(--text)">Evidence:</b> ${a.ids.length} element(s) highlighted in 2D and 3D.<br>${a.ids.slice(0, 40).join(", ")}${a.ids.length > 40 ? " …" : ""}` : "");
-  $("#answer").innerHTML = `<div class="big">${a.text}</div><div class="method">${a.method}</div><div class="method">Source: ${S.source.file}</div>`;
+  $("#answer").innerHTML = `<div class="big">${a.text}</div><div class="method">${a.method}</div><div class="method">Source: ${S.source.file} · engine: ${a.engine}</div>`;
 };
 
 // ------------------------------------------------------------------ toolbar

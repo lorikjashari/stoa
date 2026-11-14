@@ -26,6 +26,7 @@ class Evidence:
     label: str = ""
     value: float | None = None
     coords: list[list[float]] | None = None
+    viewer_id: str | int | None = None  # id of the same element in blueprint3d's scene.json (for highlighting)
 
 
 @dataclass
