@@ -55,6 +55,10 @@ def live(tmp_path, monkeypatch):
     monkeypatch.setattr(cubicasa_live, "CACHE", tmp_path / "live")
     monkeypatch.setattr(cubicasa_live, "has_ultralytics", lambda: True)
     monkeypatch.setattr(cubicasa_live, "_load", lambda run: FakeYOLO(run, calls))
+    from stoa_qa import plan3d  # the wall check needs the CubiCasa5K network: off unless a test mocks it in
+
+    monkeypatch.setattr(plan3d, "available", lambda: False)
+    monkeypatch.setattr(plan3d, "PLANS", tmp_path / "plans")
     return {"weights": weights, "calls": calls, "tmp": tmp_path}
 
 

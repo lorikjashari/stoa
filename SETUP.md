@@ -106,6 +106,17 @@ used alone, and the answer says the count is less certain). Boxes are cached in 
 stored in `eval_out/uploads/` (both gitignored). `STOA_YOLO_WEIGHTS` points to another weights folder,
 `STOA_NO_LIVE_YOLO=1` turns live detection off. The app also starts without the dataset, for uploads only.
 
+**3D for your own plans.** With the CubiCasa5K network installed as well (step 4b/4c, plus `uv sync --extra raster
+--extra detect`), an uploaded plan gets a "3D model" view. `stoa_qa/floorplan.py` rebuilds the plan in pixels: the
+image is cleaned (solid margins and site fill turned white) and enlarged so its long side is about 1,250 px, the
+network's per-pixel wall map is merged with its own traced walls and with thin drawn partitions, the sheet frame is
+dropped, doors and windows are cut into the wall they sit in, and rooms are the space the walls enclose.
+`stoa_qa/plan3d.py` turns that into the scene, placing every counted door, window, fixture and room from the same
+detector box the answers mark, under the same id, so "How many doors?" highlights the same doors on the sheet and in 3D.
+On an uploaded plan a detected door or window that sits in no wall (misread furniture) is neither built nor counted.
+Scale comes from the median door opening (0.9 m) and heights are assumed, so the model is approximate; counts are the
+reliable part. The reconstruction is cached per image in `eval_out/plan3d/`.
+
 ## 5. Launch the viewer
 
 ```bash

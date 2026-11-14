@@ -66,8 +66,12 @@ async function load(name) {
   $("#assume").textContent = raster
     ? `APPROXIMATE · traced from a raster image · scale from ${S.source.scale_from} · storey ${a.storey_height} m assumed`
     : `Assumed heights · storey ${a.storey_height} m · door head ${a.door_head} m · window ${a.window_sill}–${a.window_head} m`;
-  $("#orig img").src = DATASET_ROOT + S.source.file.replace(/\.dxf$/i, ".png");
-  $("#answer").innerHTML = `<b>${S.source.file}</b><div class="method">${S.counts.rooms} rooms · ${S.counts.doors} doors · ${S.counts.windows} windows${raster ? "" : ` · ${S.counts.units} apartments`} — ${raster ? `${S.source.engine === "cubicasa5k-model" ? "detected by the CubiCasa5K network" : "traced with OpenCV"} from the scanned image (approximate; compare with Original drawing)` : "all extracted from DXF layers"}. Ask a question or click an element.</div>`;
+  // uploaded plans (stoa_qa.uploads) live outside the dataset and are served by the API
+  $("#orig img").src = S.source.file.startsWith("uploads/") ? `/api/file?path=${encodeURIComponent(S.source.file)}`
+    : DATASET_ROOT + S.source.file.replace(/\.dxf$/i, ".png");
+  const how = { "cubicasa5k-model": "detected by the CubiCasa5K network",
+    "cubicasa5k-model+yolo": "walls and rooms by the CubiCasa5K network, doors, windows and fixtures by the plan detectors (the same marks the answers count)" };
+  $("#answer").innerHTML = `<b>${S.source.file}</b><div class="method">${S.counts.rooms} rooms · ${S.counts.doors} doors · ${S.counts.windows} windows${raster ? "" : ` · ${S.counts.units} apartments`} — ${raster ? `${how[S.source.engine] || "traced with OpenCV"} from the scanned image (approximate; compare with Original drawing)` : "all extracted from DXF layers"}. Ask a question or click an element.</div>`;
 }
 
 // ------------------------------------------------------------------ DXF: 2D (SVG, y flipped)

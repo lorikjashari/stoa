@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan Labeler</title>
+<!--
+  Correct the detector's pseudo-labels on your own plans. One static file, no build step, no network: open it in
+  Chrome or Edge (double-click works), press "Open plans folder" and pick the folder you ran
+  `modal_jobs/cubicasa_userplans.py label` on. It reads images/ (or the images in the folder itself), labels/
+  (your corrections) and labels_auto/ (pseudo-labels), and saves YOLO txt files to labels/<plan>.txt.
+  Only plans you saved here are used to train and score. Firefox/Safari: the folder is read-only there, so Save
+  downloads <plan>.txt and you move it into labels/ yourself.
+-->
+<style>
+:root { --bg:#f6f6f4; --panel:#ffffff; --ink:#1d1d1b; --muted:#6b6b66; --line:#dcdcd6; --accent:#2457d6; --warn:#b54708; --ok:#1b7f3b; }
+@media (prefers-color-scheme: dark) { :root { --bg:#151514; --panel:#1f1f1d; --ink:#ececea; --muted:#9a9a94; --line:#33332f; --accent:#7aa2ff; --warn:#f0a35e; --ok:#5fc17f; } }
+* { box-sizing: border-box; }
+html, body { margin:0; height:100%; background:var(--bg); color:var(--ink); font:13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+#app { display:grid; grid-template-columns: 220px 1fr 230px; grid-template-rows: auto 1fr; height:100%; }
+header { grid-column:1/-1; display:flex; gap:8px; align-items:center; padding:8px 12px; border-bottom:1px solid var(--line); background:var(--panel); flex-wrap:wrap; }
+header h1 { font-size:14px; margin:0 12px 0 0; }
+button { font:inherit; padding:5px 10px; border:1px solid var(--line); background:var(--panel); color:var(--ink); border-radius:6px; cursor:pointer; }
+button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+button:disabled { opacity:.45; cursor:default; }
+#status { color:var(--muted); margin-left:auto; }
+aside { overflow:auto; background:var(--panel); border-right:1px solid var(--line); }
+aside.right { border-right:0; border-left:1px solid var(--line); padding:10px; }
+#plans div { padding:5px 10px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border-bottom:1px solid var(--line); }
+#plans div.cur { background:color-mix(in srgb, var(--accent) 18%, transparent); }
+#plans .st { display:inline-block; width:16px; }
+#plans .done { color:var(--ok); } #plans .auto { color:var(--warn); } #plans .none { color:var(--muted); }
+main { position:relative; overflow:hidden; }
+canvas { display:block; width:100%; height:100%; cursor:crosshair; }
+#empty { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--muted); text-align:center; padding:24px; }
+h2 { font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:12px 0 6px; }
+.cls { display:flex; align-items:center; gap:6px; padding:3px 4px; border-radius:5px; cursor:pointer; }
+.cls.cur { outline:2px solid var(--accent); }
+.cls .sw { width:12px; height:12px; border-radius:3px; flex:none; }
+.cls .key { margin-left:auto; color:var(--muted); font-size:11px; }
+.cls input { margin:0; }
+table { border-collapse:collapse; width:100%; } td { padding:2px 4px; border-bottom:1px solid var(--line); } td:last-child { text-align:right; }
+.help { color:var(--muted); font-size:12px; } .help b { color:var(--ink); font-weight:600; }
+@media (max-width: 800px) { #app { grid-template-columns: 1fr; grid-template-rows: auto 160px 60vh auto; } aside { border:0; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Plan Labeler</h1>
+    <button class="primary" id="open">Open plans folder</button>
+    <input type="file" id="fallback" webkitdirectory multiple hidden>
+    <button id="prev" disabled title="Previous plan (PageUp)">&larr;</button>
+    <button id="next" disabled title="Next plan (PageDown)">&rarr;</button>
+    <button id="save" disabled title="Save labels/&lt;plan&gt;.txt (Ctrl+S)">Save (mark corrected)</button>
+    <button id="fit" disabled title="Fit plan to view (F)">Fit</button>
+    <span id="status">No folder open.</span>
+  </header>
+  <aside><div id="plans"></div></aside>
+  <main>
+    <canvas id="cv"></canvas>
+    <div id="empty">Open the folder you pseudo-labelled.<br>Boxes come from labels/ if you already corrected the plan, else labels_auto/.</div>
+  </main>
+  <aside class="right">
+    <h2>Class (new box / relabel)</h2>
+    <div id="classes"></div>
+    <h2>Counts on this plan</h2>
+    <table id="counts"></table>
+    <h2>Keys</h2>
+    <div class="help">
+      <b>Drag</b>: new box &middot; <b>click</b> a box: select &middot; <b>drag</b> the selected box: move &middot; its <b>corners</b>: resize<br>
+      <b>Del</b>: delete &middot; <b>1&ndash;9</b>, <b>Shift+1&ndash;4</b>: class (relabels the selected box)<br>
+      <b>Wheel</b>: zoom &middot; <b>right-drag</b> or <b>Space+drag</b>: pan &middot; <b>F</b>: fit<br>
+      <b>Ctrl+Z</b>: undo &middot; <b>Ctrl+S</b>: save &middot; <b>PageUp/PageDown</b>: plan<br>
+      Untick a class to hide it (room boxes cover fixtures).
+    </div>
+  </aside>
+</div>
+<script>
+"use strict";
+// Same order as stoa_qa/cubicasa_rules.py CLASSES (= YOLO class id). Keep in sync.
+const CLASSES = ["door","window","toilet","sink","shower","bathtub","floor","sauna","kitchen","bedroom","wc_room","bathroom","balcony"];
+const QUESTIONS = {doors:["door"],windows:["window"],toilets:["toilet"],sinks:["sink"],baths:["shower","bathtub"],floors:["floor"],
+  saunas:["sauna"],kitchens:["kitchen"],bedrooms:["bedroom"],wc_rooms:["wc_room"],bathrooms:["bathroom"],balconies:["balcony"]};
+const COLORS = ["#e6194b","#2f80ed","#3cb44b","#f58231","#911eb4","#0fa3a3","#7f7f7f","#bf8f00","#f032e6","#6a8e23","#8b4513","#008080","#d4a017"];
+const IMG_EXT = /\.(png|jpe?g|bmp|tiff?|webp)$/i;
+
+const S = { plans: [], idx: -1, dir: null, mode: null, img: null, boxes: [], sel: -1, cls: 0, hidden: new Set(),
+            dirty: false, fitted: false, undo: [], view: { s: 1, x: 0, y: 0 }, drag: null, space: false };
+const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+const $ = (id) => document.getElementById(id);
+
+// ---------------------------------------------------------------- YOLO txt <-> pixel boxes
+function parseYolo(text, w, h) {
+  const out = [];
+  for (const line of text.split(/\r?\n/)) {
+    const p = line.trim().split(/\s+/);
+    if (p.length !== 5) continue;
+    const [c, cx, cy, bw, bh] = p.map(Number);
+    if (!Number.isInteger(c) || c < 0 || c >= CLASSES.length) continue;
+    out.push({ c, x0: (cx - bw / 2) * w, y0: (cy - bh / 2) * h, x1: (cx + bw / 2) * w, y1: (cy + bh / 2) * h });
+  }
+  return out;
+}
+function toYolo(boxes, w, h) {
+  const f = (v) => v.toFixed(6), lines = [];
+  for (const b of boxes) {
+    const x0 = Math.max(0, Math.min(b.x0, b.x1)), x1 = Math.min(w, Math.max(b.x0, b.x1));
+    const y0 = Math.max(0, Math.min(b.y0, b.y1)), y1 = Math.min(h, Math.max(b.y0, b.y1));
+    if (x1 - x0 < 2 || y1 - y0 < 2) continue;
+    lines.push(`${b.c} ${f((x0 + x1) / 2 / w)} ${f((y0 + y1) / 2 / h)} ${f((x1 - x0) / w)} ${f((y1 - y0) / h)}`);
+  }
+  return lines.join("\n") + (lines.length ? "\n" : "");
+}
+
+// ---------------------------------------------------------------- folder loading
+// A plan: { name, image: () => Promise<Blob>, corrected: () => Promise<string|null>, auto: () => Promise<string|null>, done }
+async function fileText(h) { try { return await (await h.getFile()).text(); } catch { return null; } }
+async function subdir(d, name) { try { return await d.getDirectoryHandle(name); } catch { return null; } }
+
+async function openWithAccess() {
+  const dir = await window.showDirectoryPicker({ mode: "readwrite" });
+  const imgDir = (await subdir(dir, "images")) || dir;
+  const lab = await subdir(dir, "labels"), auto = await subdir(dir, "labels_auto");
+  const txt = async (d) => { const m = new Map(); if (d) for await (const [n, h] of d.entries()) if (h.kind === "file" && n.endsWith(".txt")) m.set(n.slice(0, -4), h); return m; };
+  const labs = await txt(lab), autos = await txt(auto), plans = [];
+  for await (const [n, h] of imgDir.entries()) {
+    if (h.kind !== "file" || !IMG_EXT.test(n)) continue;
+    const name = n.replace(/\.[^.]+$/, "");
+    plans.push({ name, image: () => h.getFile(), corrected: () => labs.has(name) ? fileText(labs.get(name)) : null,
+                 auto: () => autos.has(name) ? fileText(autos.get(name)) : null, done: labs.has(name) });
+  }
+  S.dir = dir; S.mode = "write";
+  return plans;
+}
+
+function openFromFileList(files) {
+  const byName = new Map(), get = (n) => byName.get(n) || byName.set(n, { name: n }).get(n);
+  for (const f of files) {
+    const parts = (f.webkitRelativePath || f.name).split("/"), parent = parts.length > 1 ? parts[parts.length - 2] : "";
+    const name = f.name.replace(/\.[^.]+$/, "");
+    if (IMG_EXT.test(f.name) && parent !== "predictions") get(name).img = f;
+    else if (f.name.endsWith(".txt") && parent === "labels") get(name).lab = f;
+    else if (f.name.endsWith(".txt") && parent === "labels_auto") get(name).auto = f;
+  }
+  S.mode = "download";
+  return [...byName.values()].filter((p) => p.img).map((p) => ({ name: p.name, image: async () => p.img,
+    corrected: () => p.lab ? p.lab.text() : null, auto: () => p.auto ? p.auto.text() : null, done: !!p.lab }));
+}
+
+async function setPlans(plans) {
+  S.plans = plans.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  $("empty").style.display = S.plans.length ? "none" : "flex";
+  if (!S.plans.length) $("empty").textContent = "No plan images found (png, jpg, bmp, tif, webp) in that folder or its images/ subfolder.";
+  renderList();
+  if (S.plans.length) await openPlan(0);
+}
+
+$("open").onclick = async () => {
+  if (!(await confirmLeave())) return;
+  if (window.showDirectoryPicker) {
+    try { await setPlans(await openWithAccess()); } catch (e) { if (e.name !== "AbortError") status("Could not open folder: " + e.message); }
+  } else $("fallback").click();
+};
+$("fallback").onchange = (e) => setPlans(openFromFileList(e.target.files));
+
+// ---------------------------------------------------------------- plans
+async function openPlan(i) {
+  if (i < 0 || i >= S.plans.length) return;
+  const p = S.plans[i];
+  const blob = await p.image();
+  const img = await createImageBitmap(blob);
+  const corrected = await p.corrected(), text = corrected ?? (await p.auto()) ?? "";
+  S.idx = i; S.img = img; S.boxes = parseYolo(text, img.width, img.height); S.sel = -1; S.dirty = false; S.undo = [];
+  status(`${p.name}: ${img.width}×${img.height}px, ${S.boxes.length} boxes from ${corrected != null ? "labels/ (corrected)" : text ? "labels_auto/ (pseudo-labels: check every box)" : "nothing (no labels yet)"}`);
+  ["prev", "next", "save", "fit"].forEach((id) => ($(id).disabled = false));
+  renderList(); fit(); renderCounts();
+}
+async function confirmLeave() { return !S.dirty || (S.mode === "write" ? (await save(), true) : confirm("Unsaved changes on this plan. Leave anyway?")); }
+async function go(d) { if (await confirmLeave()) openPlan(S.idx + d); }
+$("prev").onclick = () => go(-1); $("next").onclick = () => go(1);
+
+async function save() {
+  const p = S.plans[S.idx]; if (!p) return;
+  const text = toYolo(S.boxes, S.img.width, S.img.height);
+  if (S.mode === "write") {
+    const lab = await S.dir.getDirectoryHandle("labels", { create: true });
+    const fh = await lab.getFileHandle(p.name + ".txt", { create: true });
+    const w = await fh.createWritable(); await w.write(text); await w.close();
+    p.corrected = () => fileText(fh);
+    status(`saved labels/${p.name}.txt (${S.boxes.length} boxes)`);
+  } else {
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([text], { type: "text/plain" })), download: p.name + ".txt" });
+    a.click(); URL.revokeObjectURL(a.href);
+    p.corrected = async () => text;
+    status(`downloaded ${p.name}.txt: move it into the folder's labels/ subfolder`);
+  }
+  p.done = true; S.dirty = false; renderList();
+}
+$("save").onclick = save;
+
+function renderList() {
+  const el = $("plans"); el.innerHTML = "";
+  S.plans.forEach((p, i) => {
+    const d = document.createElement("div");
+    d.className = i === S.idx ? "cur" : "";
+    d.innerHTML = `<span class="st ${p.done ? "done" : "auto"}">${p.done ? "✓" : "•"}</span>`;
+    d.append(p.name + (i === S.idx && S.dirty ? " *" : ""));
+    d.title = p.done ? "corrected (labels/)" : "not corrected yet";
+    d.onclick = async () => { if (await confirmLeave()) openPlan(i); };
+    el.append(d);
+  });
+}
+function status(msg) { $("status").textContent = msg + (S.plans.length ? `  —  ${S.plans.filter((p) => p.done).length}/${S.plans.length} corrected` : ""); }
+
+// ---------------------------------------------------------------- class panel + counts
+function renderClasses() {
+  const el = $("classes"); el.innerHTML = "";
+  CLASSES.forEach((c, i) => {
+    const d = document.createElement("div");
+    d.className = "cls" + (i === S.cls ? " cur" : "");
+    const key = i < 9 ? String(i + 1) : "Shift+" + (i - 8);
+    d.innerHTML = `<input type="checkbox" ${S.hidden.has(i) ? "" : "checked"} title="show/hide"><span class="sw" style="background:${COLORS[i]}"></span>${c}<span class="key">${key}</span>`;
+    d.querySelector("input").onclick = (e) => { e.stopPropagation(); S.hidden.has(i) ? S.hidden.delete(i) : S.hidden.add(i); if (S.sel >= 0 && S.boxes[S.sel].c === i) S.sel = -1; draw(); };
+    d.onclick = () => setClass(i);
+    el.append(d);
+  });
+}
+function setClass(i) {
+  S.cls = i;
+  if (S.sel >= 0 && S.boxes[S.sel].c !== i) { pushUndo(); S.boxes[S.sel].c = i; changed(); }
+  renderClasses(); draw();
+}
+function renderCounts() {
+  const t = $("counts"); t.innerHTML = "";
+  for (const [q, cs] of Object.entries(QUESTIONS)) {
+    const n = S.boxes.filter((b) => cs.includes(CLASSES[b.c])).length;
+    t.insertAdjacentHTML("beforeend", `<tr><td>${q}</td><td>${n}</td></tr>`);
+  }
+}
+
+// ---------------------------------------------------------------- edits
+function pushUndo() { S.undo.push(JSON.stringify(S.boxes)); if (S.undo.length > 200) S.undo.shift(); }
+function changed() { S.dirty = true; renderCounts(); renderList(); draw(); }
+
+// ---------------------------------------------------------------- view + drawing
+function resize() {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (!S.fitted) fit(); else draw();  // a plan opened while the canvas had no size is fitted once it has one
+}
+function fit() {
+  if (!S.img) return;
+  const r = cv.getBoundingClientRect(), s = Math.min(r.width / S.img.width, r.height / S.img.height) * 0.96;
+  S.fitted = s > 0;
+  if (S.fitted) S.view = { s, x: (r.width - S.img.width * s) / 2, y: (r.height - S.img.height * s) / 2 };
+  draw();
+}
+$("fit").onclick = fit;
+const toScreen = (x, y) => [x * S.view.s + S.view.x, y * S.view.s + S.view.y];
+const toImage = (x, y) => [(x - S.view.x) / S.view.s, (y - S.view.y) / S.view.s];
+
+function draw() {
+  const r = cv.getBoundingClientRect();
+  ctx.clearRect(0, 0, r.width, r.height);
+  if (!S.img) return;
+  ctx.imageSmoothingEnabled = S.view.s < 2;
+  ctx.drawImage(S.img, S.view.x, S.view.y, S.img.width * S.view.s, S.img.height * S.view.s);
+  S.boxes.forEach((b, i) => {
+    if (S.hidden.has(b.c)) return;
+    const [x0, y0] = toScreen(Math.min(b.x0, b.x1), Math.min(b.y0, b.y1)), [x1, y1] = toScreen(Math.max(b.x0, b.x1), Math.max(b.y0, b.y1));
+    ctx.strokeStyle = COLORS[b.c]; ctx.lineWidth = i === S.sel ? 3 : 1.5;
+    ctx.fillStyle = COLORS[b.c] + (i === S.sel ? "40" : "14");
+    ctx.fillRect(x0, y0, x1 - x0, y1 - y0); ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+    if (i === S.sel || S.view.s * Math.max(S.img.width, S.img.height) > 900) {
+      ctx.font = "11px system-ui"; const label = CLASSES[b.c], w = ctx.measureText(label).width + 6;
+      ctx.fillStyle = COLORS[b.c]; ctx.fillRect(x0, y0 - 14, w, 14); ctx.fillStyle = "#fff"; ctx.fillText(label, x0 + 3, y0 - 3);
+    }
+    if (i === S.sel) { ctx.fillStyle = "#fff"; ctx.strokeStyle = COLORS[b.c]; ctx.lineWidth = 1.5;
+      for (const [hx, hy] of [[x0, y0], [x1, y0], [x0, y1], [x1, y1]]) { ctx.fillRect(hx - 4, hy - 4, 8, 8); ctx.strokeRect(hx - 4, hy - 4, 8, 8); } }
+  });
+  const d = S.drag;
+  if (d && d.kind === "new") {
+    const [x0, y0] = toScreen(d.ix, d.iy), [x1, y1] = toScreen(d.cx, d.cy);
+    ctx.setLineDash([5, 3]); ctx.strokeStyle = COLORS[S.cls]; ctx.lineWidth = 2; ctx.strokeRect(x0, y0, x1 - x0, y1 - y0); ctx.setLineDash([]);
+  }
+}
+
+function hit(sx, sy) {
+  if (S.sel >= 0) {  // resize handles of the selected box first
+    const b = S.boxes[S.sel];
+    const xs = [Math.min(b.x0, b.x1), Math.max(b.x0, b.x1)], ys = [Math.min(b.y0, b.y1), Math.max(b.y0, b.y1)];
+    for (const [cx, kx] of [[xs[0], "x0"], [xs[1], "x1"]]) for (const [cy, ky] of [[ys[0], "y0"], [ys[1], "y1"]]) {
+      const [hx, hy] = toScreen(cx, cy);
+      if (Math.abs(sx - hx) <= 7 && Math.abs(sy - hy) <= 7) return { i: S.sel, corner: [kx, ky] };
+    }
+  }
+  const [ix, iy] = toImage(sx, sy), pad = 4 / S.view.s;  // thin boxes (windows) stay clickable
+  let best = -1, area = Infinity;
+  S.boxes.forEach((b, i) => {
+    if (S.hidden.has(b.c)) return;
+    const x0 = Math.min(b.x0, b.x1) - pad, x1 = Math.max(b.x0, b.x1) + pad, y0 = Math.min(b.y0, b.y1) - pad, y1 = Math.max(b.y0, b.y1) + pad;
+    const a = (x1 - x0) * (y1 - y0);
+    if (ix >= x0 && ix <= x1 && iy >= y0 && iy <= y1 && a < area) { best = i; area = a; }
+  });
+  return best >= 0 ? { i: best } : null;
+}
+
+cv.addEventListener("contextmenu", (e) => e.preventDefault());
+cv.addEventListener("pointerdown", (e) => {
+  if (!S.img) return;
+  cv.setPointerCapture(e.pointerId);
+  const r = cv.getBoundingClientRect(), sx = e.clientX - r.left, sy = e.clientY - r.top, [ix, iy] = toImage(sx, sy);
+  if (e.button === 2 || e.button === 1 || S.space) { S.drag = { kind: "pan", sx, sy, vx: S.view.x, vy: S.view.y }; return; }
+  // corners resize and a drag moves only the box that is already selected; any other drag draws a new box
+  // (room and floor boxes cover the whole plan, so "drag on a box = move it" would make drawing impossible)
+  const h = hit(sx, sy);
+  if (h && (h.corner || h.i === S.sel)) {
+    pushUndo();
+    const b = S.boxes[h.i];
+    if (h.corner) {
+      S.boxes[h.i] = { c: b.c, x0: Math.min(b.x0, b.x1), y0: Math.min(b.y0, b.y1), x1: Math.max(b.x0, b.x1), y1: Math.max(b.y0, b.y1) };
+      S.drag = { kind: "corner", kx: h.corner[0], ky: h.corner[1], moved: false };
+    } else S.drag = { kind: "move", ix, iy, orig: { ...b }, moved: false };
+  } else S.drag = { kind: "new", ix, iy, cx: ix, cy: iy, pick: h ? h.i : -1 };
+  draw();
+});
+function setClassQuiet(i) { S.cls = i; renderClasses(); }
+cv.addEventListener("pointermove", (e) => {
+  const d = S.drag; if (!d) return;
+  const r = cv.getBoundingClientRect(), sx = e.clientX - r.left, sy = e.clientY - r.top, [ix, iy] = toImage(sx, sy);
+  const W = S.img.width, H = S.img.height, cl = (v, m) => Math.max(0, Math.min(m, v));
+  if (d.kind === "pan") { S.view.x = d.vx + sx - d.sx; S.view.y = d.vy + sy - d.sy; }
+  else if (d.kind === "new") { d.cx = cl(ix, W); d.cy = cl(iy, H); }
+  else if (d.kind === "move") { const b = S.boxes[S.sel], o = d.orig, dx = ix - d.ix, dy = iy - d.iy;
+    Object.assign(b, { x0: o.x0 + dx, x1: o.x1 + dx, y0: o.y0 + dy, y1: o.y1 + dy }); d.moved = true; }
+  else if (d.kind === "corner") { const b = S.boxes[S.sel]; b[d.kx] = cl(ix, W); b[d.ky] = cl(iy, H); d.moved = true; }
+  draw();
+});
+cv.addEventListener("pointerup", () => {
+  const d = S.drag; S.drag = null; if (!d) return;
+  if (d.kind === "new") {
+    const [sx0, sy0] = toScreen(d.ix, d.iy), [sx1, sy1] = toScreen(d.cx, d.cy);
+    if (Math.abs(sx1 - sx0) >= 4 && Math.abs(sy1 - sy0) >= 4) {
+      pushUndo();
+      S.boxes.push({ c: S.cls, x0: Math.min(d.ix, d.cx), y0: Math.min(d.iy, d.cy), x1: Math.max(d.ix, d.cx), y1: Math.max(d.iy, d.cy) });
+      S.sel = S.boxes.length - 1; S.hidden.delete(S.cls); renderClasses(); changed();
+    } else {  // a click: select the box under the pointer (or nothing)
+      S.sel = d.pick;
+      if (d.pick >= 0) setClassQuiet(S.boxes[d.pick].c);
+      draw();
+    }
+  } else if ((d.kind === "move" || d.kind === "corner")) { if (d.moved) changed(); else S.undo.pop(); }
+});
+cv.addEventListener("wheel", (e) => {
+  if (!S.img) return; e.preventDefault();
+  const r = cv.getBoundingClientRect(), sx = e.clientX - r.left, sy = e.clientY - r.top, [ix, iy] = toImage(sx, sy);
+  const s = Math.max(0.02, Math.min(40, S.view.s * Math.exp(-e.deltaY * 0.0015)));
+  S.view = { s, x: sx - ix * s, y: sy - iy * s }; draw();
+}, { passive: false });
+
+window.addEventListener("keydown", (e) => {
+  if (e.target.tagName === "INPUT") return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); if (S.img) save(); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); if (S.undo.length) { S.boxes = JSON.parse(S.undo.pop()); S.sel = -1; changed(); } return; }
+  if (e.code === "Space") { S.space = true; e.preventDefault(); return; }
+  if ((e.key === "Delete" || e.key === "Backspace") && S.sel >= 0) { pushUndo(); S.boxes.splice(S.sel, 1); S.sel = -1; changed(); return; }
+  if (e.key === "Escape") { S.sel = -1; draw(); return; }
+  if (e.key === "PageDown") { e.preventDefault(); go(1); return; }
+  if (e.key === "PageUp") { e.preventDefault(); go(-1); return; }
+  if (e.key.toLowerCase() === "f" && !e.ctrlKey) { fit(); return; }
+  const m = /^Digit([1-9])$/.exec(e.code) || (!e.shiftKey && /^([1-9])$/.exec(e.key));
+  if (m && !e.ctrlKey && !e.altKey) { const n = Number(m[1]); const i = e.shiftKey ? (n <= 4 ? 8 + n : -1) : n - 1; if (i >= 0) setClass(i); }
+});
+window.addEventListener("keyup", (e) => { if (e.code === "Space") S.space = false; });
+window.addEventListener("beforeunload", (e) => { if (S.dirty) { e.preventDefault(); e.returnValue = ""; } });
+new ResizeObserver(resize).observe(cv);
+renderClasses(); renderCounts();
+
+// Test hook (used only by automated checks): load plans from in-memory blobs, same path as the fallback picker.
+window.__labeler = { S, parseYolo, toYolo, load: (plans) => { S.mode = "download"; return setPlans(plans); } };
+</script>
+</body>
+</html>

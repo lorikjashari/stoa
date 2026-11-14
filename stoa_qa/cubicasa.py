@@ -137,9 +137,17 @@ def predictions(stem: str, image: Path | None = None) -> dict[str, dict]:
 
         live = cubicasa_live.boxes(cfg["yolo_run"], image)
         if live is not None:  # same format and thresholds as the precomputed boxes of the picked run
-            counts = {q: len(_yolo_selected(live["boxes"], q, cfg)) for q in YOLO_Q}
-            out["yolo"] = {"counts": counts, "boxes": live["boxes"],
-                           "live": {k: live[k] for k in ("runs", "fused", "complete", "hash")}}
+            boxes, info = live["boxes"], {k: live[k] for k in ("runs", "fused", "complete", "hash")}
+            from . import plan3d
+
+            if plan3d.available():  # doors and windows must sit in a wall: on a new drawing, others are misread furniture
+                info["openings"] = plan3d.openings_of(boxes, cfg)
+                off = plan3d.off_wall(image, boxes, cfg)
+                if off:  # scored 0, not removed: a box's index stays its 3D id
+                    boxes = [[b[0], 0.0, *b[2:]] if k in off else b for k, b in enumerate(boxes)]
+                    info["off_wall"] = len(off)
+            counts = {q: len(_yolo_selected(boxes, q, cfg)) for q in YOLO_Q}
+            out["yolo"] = {"counts": counts, "boxes": boxes, "live": info}
     return out
 
 
@@ -152,8 +160,9 @@ def _yolo_selected(boxes: list, key: str, cfg: dict, pre: str = "yolo") -> list:
 def _evidence(src: str, key: str, pred: dict, cfg: dict) -> list[Evidence]:
     if src in DETECTORS:
         sel = _yolo_selected(pred["boxes"], key, cfg, DETECTORS[src])
-        return [Evidence("box", f"{src}-{i}", f"{YOLO_CLASSES[b[0]]} {i + 1}", b[1], [[b[2], b[3]], [b[4], b[5]]])
-                for i, b in enumerate(sel)]
+        pos = {id(b): k for k, b in enumerate(pred["boxes"])}  # a box's index in the plan's boxes is its 3D id (stoa_qa.plan3d)
+        return [Evidence("box", f"{src}-{i}", f"{YOLO_CLASSES[b[0]]} {i + 1}", b[1], [[b[2], b[3]], [b[4], b[5]]],
+                         viewer_id=f"{src}:{pos[id(b)]}") for i, b in enumerate(sel)]
     if src == "network":
         boxes = (pred.get("boxes") or {}).get(key)
         if boxes:
@@ -185,7 +194,11 @@ def _live_note(live: dict, cfg: dict) -> str:
     note = f"Detected on this image just now by YOLO11 ({runs}, {how}), with the thresholds chosen on CubiCasa's val split"
     if not live["complete"]:
         note += f" for {cfg.get('yolo_run')}; only part of that run is installed here, so the count is less certain"
-    return note + "."
+    note += "."
+    if live.get("off_wall"):
+        n = live["off_wall"]
+        note += f" {n} door/window detection{'s' if n != 1 else ''} not set in any wall {'were' if n != 1 else 'was'} left out (furniture misread)."
+    return note
 
 
 def answer(path: str, question: str) -> Answer:

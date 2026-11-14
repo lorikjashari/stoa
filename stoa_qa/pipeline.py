@@ -357,8 +357,8 @@ def _overlay(d: Drawing, a: Answer) -> dict:
             pts = e.coords
         if len(pts) < 3:
             continue
-        items.append({"kind": "poly", "pts": pts, "bbox": _bbox(pts), "label": e.label, "value": e.value, "id": None,
-                      "basis": _raster_basis(str(e.ref or ""))})
+        items.append({"kind": "poly", "pts": pts, "bbox": _bbox(pts), "label": e.label, "value": e.value, "id": e.viewer_id,
+                      "basis": _raster_basis(str(e.ref or ""))})  # detector boxes: the same id as in the plan's 3D scene
     return {"space": "px", "items": _number(items)}
 
 
