@@ -1,0 +1,7 @@
+{
+ "_note": "Hand labels for _analysis/archive_sample.json (seed 7, 15 per source), from contact sheets. plan = one floor plan (or several floor plans) of a building, worth extruding; multi = sheet with a plan beside elevations/sections/text; site = site/city/archaeological map; other = elevation, section, detail, perspective, ornament, text, photo.",
+ "wikimedia": ["site", "plan", "site", "plan", "multi", "site", "plan", "plan", "site", "plan", "plan", "site", "plan", "plan", "multi"],
+ "finna": ["other", "other", "multi", "other", "other", "other", "other", "plan", "other", "site", "site", "plan", "multi", "multi", "other"],
+ "europeana": ["other", "other", "multi", "other", "plan", "multi", "other", "other", "other", "other", "other", "plan", "other", "multi", "other"],
+ "habs": ["other", "other", "other", "other", "other", "multi", "other", "multi", "site", "other", "site", "other", "other", "other", "site"]
+}
