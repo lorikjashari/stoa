@@ -21,7 +21,7 @@ REPO = Path(__file__).resolve().parent.parent
 DATA_URL = "https://fwjydgxpttajiqpfmqtj.supabase.co/storage/v1/object/public/stoa-junction-2026/junction-dataset.zip"
 
 vol = modal.Volume.from_name("stoa-dataset", create_if_missing=True)
-app = modal.App("plumbline")
+app = modal.App("oqvar")
 
 image = (
     modal.Image.debian_slim(python_version="3.12")

@@ -41,7 +41,7 @@
    "title": "Raster plans — CubiCasa5K held-out test split (387 plans)",
    "rows": [
     {
-     "label": "Plumbline hybrid",
+     "label": "OQVAR hybrid",
      "sub": "3,398 questions · best source per question, chosen on the validation split",
      "pct": 65.9211300765156,
      "kind": "ev"

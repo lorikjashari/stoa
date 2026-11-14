@@ -1,4 +1,4 @@
-// Plumbline web app: drawing register, the sheet with takeoff marks, the check sheet, linked 3D.
+// OQVAR web app: drawing register, the sheet with takeoff marks, the check sheet, linked 3D.
 const $ = (s, r = document) => r.querySelector(s);
 const SVGNS = "http://www.w3.org/2000/svg";
 const h = (tag, attrs = {}, ...kids) => {
@@ -242,10 +242,10 @@ async function open3D() {
 
 function highlight3D(ids) {
   state.pending3d = ids;
-  $("#three").contentWindow?.postMessage({ type: "plumbline:highlight", ids }, location.origin);
+  $("#three").contentWindow?.postMessage({ type: "oqvar:highlight", ids }, location.origin);
 }
 window.addEventListener("message", (e) => {
-  if (e.origin === location.origin && e.data?.type === "plumbline:ready" && state.pending3d) highlight3D(state.pending3d);
+  if (e.origin === location.origin && e.data?.type === "oqvar:ready" && state.pending3d) highlight3D(state.pending3d);
 });
 
 // ------------------------------------------------------------------ takeoff marks on the sheet

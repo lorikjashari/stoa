@@ -1,4 +1,4 @@
-/* Plumbline — "drafting office": paper and ink, title-block chrome, takeoff highlighter, rubber-stamp verdicts. */
+/* OQVAR — "drafting office": paper and ink, title-block chrome, takeoff highlighter, rubber-stamp verdicts. */
 :root {
   --paper: #f2eee4;        /* working surfaces */
   --desk: #e7e2d5;         /* the drafting mat behind the sheet */
@@ -35,7 +35,8 @@ h1, h2, p, dl, dd, ol { margin: 0; padding: 0; }
 /* ------------------------------------------------------------------ title block */
 .tb { height: 52px; display: flex; align-items: stretch; background: var(--card); border-bottom: 2px solid var(--ink); }
 .tb-brand { display: flex; align-items: center; gap: 11px; padding: 0 20px 0 16px; border-right: 1px solid var(--ink); text-decoration: none; color: inherit; }
-.tb-brand strong { display: block; font: 800 25px/.9 var(--display); letter-spacing: .055em; text-transform: uppercase; }
+.tb-mark { height: 32px; width: auto; flex: none; }
+.tb-wm { display: block; height: 15px; width: auto; overflow: visible; }
 .tb-brand em { display: block; font: 500 9px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); font-style: normal; margin-top: 4px; }
 .tb-cell { display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 0 18px; border-right: 1px solid var(--ink); white-space: nowrap; }
 .tb-cell dd { font: 500 13px/1 var(--mono); }

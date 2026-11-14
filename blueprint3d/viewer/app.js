@@ -12,7 +12,7 @@ const KIND_COLORS = {
   bedroom: 0x8fb8de, living: 0xe8c48a, kitchen: 0xe59a7a, bath: 0x86d0c7, corridor: 0xcfcac0,
   storage: 0xb8aed0, outdoor: 0xa8cf8f, stair: 0xa0a4ab, other: 0xd7d3cb,
 };
-const EMBED = new URLSearchParams(location.search).has("embed");  // shown inside the Plumbline app: paper theme, 3D pane only
+const EMBED = new URLSearchParams(location.search).has("embed");  // shown inside the OQVAR app: paper theme, 3D pane only
 const HL = new THREE.Color(EMBED ? 0xffd21a : 0xffb020);
 const $ = (s) => document.querySelector(s);
 const hex = (c) => "#" + c.toString(16).padStart(6, "0");
@@ -27,9 +27,9 @@ let webIfc = null;
 if (EMBED) document.body.classList.add("embed");
 // stoa_qa answers carry IFC entity numbers; IFC scenes key their elements as "#<number>"
 const sceneId = (i) => (byId.has(i) ? i : byId.has("#" + i) ? "#" + i : null);
-const notifyHost = () => { if (window.parent !== window) window.parent.postMessage({ type: "plumbline:ready", name: $("#scene").value }, location.origin); };
+const notifyHost = () => { if (window.parent !== window) window.parent.postMessage({ type: "oqvar:ready", name: $("#scene").value }, location.origin); };
 window.addEventListener("message", (e) => {
-  if (e.origin !== location.origin || e.data?.type !== "plumbline:highlight") return;
+  if (e.origin !== location.origin || e.data?.type !== "oqvar:highlight") return;
   const ids = (e.data.ids || []).map(sceneId).filter((i) => i != null);
   select(ids, ids.length ? `<b style="color:var(--text)">Evidence:</b> ${ids.length} element(s) highlighted.` : "");
 });

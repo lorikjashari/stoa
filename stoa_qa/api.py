@@ -31,7 +31,7 @@ REPO = Path(__file__).resolve().parent.parent
 WEB = REPO / "web"
 SCENES = REPO / "blueprint3d" / "viewer" / "scenes"
 
-app = FastAPI(title="Plumbline · Make Blueprints Talk", version="0.2")
+app = FastAPI(title="OQVAR · Make Blueprints Talk", version="0.2")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 app.add_middleware(GZipMiddleware, minimum_size=2000)
 _scene_lock = threading.Lock()

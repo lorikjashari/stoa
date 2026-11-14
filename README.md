@@ -1,3 +1,5 @@
+<img src="brand/oqvar-lockup.svg" alt="OQVAR" width="260">
+
 # Stoa — Make Blueprints Talk
 
 > Ask a question about a construction drawing. Get an answer you can verify in seconds — in 2D *and* in 3D.
@@ -9,7 +11,7 @@ Two things we are building:
 1. **Blueprint Q&A (the core challenge).** Ask in any language ("How many doors are on this floor?", "Kuinka monta saunaa?", "What is the net area of the kitchen?"). You get the answer *and* the exact place on the drawing it came from, highlighted, so an engineer can check it in seconds.
 2. **Blueprint → 3D (our addition).** We turn 2D plans into an interactive 3D model of the same building. Clicking a room or wall in 3D highlights its source on the 2D sheet, and every answer is highlighted in both views. The 3D model is a second way to check an answer, not a separate feature.
 
-## Plumbline: the app ✅
+## OQVAR: the app ✅
 
 ```bash
 uv sync
@@ -400,7 +402,7 @@ py -m http.server 8765                      # open http://localhost:8765/bluepri
 
 Raster plans (CubiCasa5K network) need a venv, PyTorch and the model weights: see SETUP.md step 4.
 
-The app and the multilingual Q&A engine use [uv](https://docs.astral.sh/uv/): `uv sync`, then `uv run uvicorn stoa_qa.api:app --port 8765` (see [Plumbline: the app](#plumbline-the-app-)). To score the engine: `uv run python -m stoa_qa.eval --source swiss_dwellings --limit 50`. Secrets go in `.env` (gitignored): `FEATHERLESS_API_KEY` (Gemma), `GEMINI_API_KEY`.
+The app and the multilingual Q&A engine use [uv](https://docs.astral.sh/uv/): `uv sync`, then `uv run uvicorn stoa_qa.api:app --port 8765` (see [OQVAR: the app](#oqvar-the-app-)). To score the engine: `uv run python -m stoa_qa.eval --source swiss_dwellings --limit 50`. Secrets go in `.env` (gitignored): `FEATHERLESS_API_KEY` (Gemma), `GEMINI_API_KEY`.
 
 ## Useful links
 

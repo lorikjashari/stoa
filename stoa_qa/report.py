@@ -82,7 +82,7 @@ def main() -> None:
         hybrid = {p: {k: sources[s][p][k] for k, s in picks["picks"].items() if p in sources.get(s, {}) and k in sources[s][p]} for p in test}
         pct, n, _ = overall(hybrid)
         hybrid_pct = pct
-        raster_rows.append({"label": "Plumbline hybrid", "sub": f"{n:,} questions · best source per question, chosen on the validation split", "pct": pct, "kind": "ev"})
+        raster_rows.append({"label": "OQVAR hybrid", "sub": f"{n:,} questions · best source per question, chosen on the validation split", "pct": pct, "kind": "ev"})
     g_in, g_out, g_cost, _ = _avg_tokens(REPO / "eval_out/gemini/google__gemma-4-31B-it")
     labels = {"gemma": ("Gemma 4 31B alone", f"{g_in:.0f} + {g_out:.0f} tokens per plan · ${1000 * g_cost / 24:.3f} per 1,000 questions"),
               "network": ("CubiCasa5K network alone", "pretrained 2019 model · CPU · no showers, no floor count"),
