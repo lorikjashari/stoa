@@ -28,6 +28,11 @@ raster = [
 detect = [
   "ultralytics>=8.3",
 ]
+# Text of uploaded sheets (stoa_qa/sheet_ocr.py: schedules, room counts, title blocks; room names and legends for
+# stoa_qa/room_labels.py and stoa_qa/legend_rooms.py): uv sync --extra ocr. Without it those readers are skipped.
+ocr = [
+  "rapidocr_onnxruntime>=1.2",
+]
 
 [tool.uv.sources]
 torch = { index = "pytorch-cpu" }

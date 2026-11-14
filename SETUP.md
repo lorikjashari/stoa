@@ -94,15 +94,29 @@ The app answers raster plans from boxes predicted offline for CubiCasa's val/tes
 including one you upload in the web app ("Upload a plan image", or drop the file on the sheet), install the detectors:
 
 ```bash
-uv sync --extra detect                       # ultralytics + CPU torch (not needed for CI or the base app)
+uv sync --extra detect --extra ocr --extra raster   # detectors, sheet text (OCR), and scipy/scikit-image for the 3D wall check
 modal token new                              # once, if this machine has no Modal login
+# the upload detector (trained on CubiCasa + Swiss sheets; thresholds in stoa_qa/cubicasa_live_picks.json):
+uv run modal volume get stoa-cubicasa runs/mixed-m13/weights/best.pt third_party/weights/mixed-m13.pt
+# the fused pair (used when mixed-m13 is missing, and for CubiCasa plans without precomputed boxes):
 uv run modal volume get stoa-cubicasa runs/m13-1280/weights/best.pt third_party/weights/m13-1280.pt
-# the second model of the fused run, if you have it (it was trained on a laptop, not on Modal):
-#   copy its best.pt to third_party/weights/local-y11s-13c.pt
+uv run modal volume get stoa-cubicasa runs/local-y11s-13c/weights/best.pt third_party/weights/local-y11s-13c.pt
 ```
 
-`stoa_qa/cubicasa_live.py` runs whichever of the two models is present (both → fused like the offline run; one →
-used alone, and the answer says the count is less certain). Boxes are cached in `eval_out/yolo/live/`; uploads are
+`stoa_qa/cubicasa_live.py` runs `mixed-m13` on uploads when its weights are present (Swiss test sheets, a style the old
+pair never saw: 65% exact counts vs ~38%; CubiCasa test 82.4% vs 83.2%, so dataset plans keep their offline boxes), and
+detects in 960 px tiles only when that finds far more objects (dense sheets with small symbols). Without it, it runs
+whichever of the two older models is present (both → fused like the offline run; one → used alone, and the answer says
+the count is less certain).
+
+**Text and rooms on uploaded sheets** (`--extra ocr`). `stoa_qa/sheet_ocr.py` reads an uploaded sheet's text at full
+resolution (in tiles, plus a pass turned 90° for title blocks) right after upload, about 20-25 s on CPU, cached in
+`eval_out/ocr/`. The document clerk then answers from it (schedules, room-count and area tables, notes, sheet number,
+scale), highlighting the rows it used. Room-type questions use the sheet's colour legend when it has one
+(`stoa_qa/legend_rooms.py`: rooms filled with the legend colour of e.g. DORMITORY), then the detector, then printed room
+names resolved to their walled room (`stoa_qa/room_labels.py`). Uploads up to 250 MP / 100 MB (PNG, JPEG, WebP, TIFF,
+BMP); a sheet whose long side is over 4,000 px is stored scaled to 4,000 px. Without the `ocr` extra these readers are
+skipped and the app falls back to the detector and the vision model. Boxes are cached in `eval_out/yolo/live/`; uploads are
 stored in `eval_out/uploads/` (both gitignored). `STOA_YOLO_WEIGHTS` points to another weights folder,
 `STOA_NO_LIVE_YOLO=1` turns live detection off. The app also starts without the dataset, for uploads only.
 
