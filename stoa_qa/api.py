@@ -6,8 +6,9 @@
 /                 the web app (web/)
 /blueprint3d/     the linked 2D/3D viewer
 /ask, /questions  earlier contract, still used by the 3D viewer's own question box
+/api/upload       a new plan image (stored under the uploads folder, stoa_qa.uploads), then asked like any drawing
 
-Only web/, blueprint3d/ and dataset files are ever served (the repo root holds .env).
+Only web/, blueprint3d/, dataset files and uploaded plans are ever served (the repo root holds .env).
 """
 from __future__ import annotations
 
@@ -18,14 +19,15 @@ import sys
 import threading
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 
-from . import catalog, graph, llm, pipeline, sheets
+from . import catalog, cubicasa, cubicasa_live, graph, llm, pipeline, sheets, uploads
 from .core import DATASET
 
 REPO = Path(__file__).resolve().parent.parent
@@ -57,6 +59,11 @@ class Ask(BaseModel):
 
 
 def _drawing(id_or_path: str) -> catalog.Drawing:
+    if uploads.is_upload(id_or_path):
+        d = uploads.drawing(id_or_path)
+        if d is None:
+            raise HTTPException(404, f"unknown upload: {id_or_path}")
+        return d
     cat = catalog.catalog()
     d = cat.get(id_or_path) or cat.get(_file_index().get(id_or_path, ""))
     if d is None:
@@ -84,7 +91,13 @@ def _file(rel: str) -> Path:
 @app.get("/api/config")
 def config():
     return {"llm": llm.available(), "llm_model": llm.MODEL.split("/")[-1], "drawings": len(catalog.catalog()),
-            "questions": sum(len(v) for v in catalog.question_index().values())}
+            "questions": sum(len(v) for v in catalog.question_index().values()), "detector": _detector()}
+
+
+def _detector() -> dict:
+    """Which YOLO runs can be executed here on plans without precomputed boxes (stoa_qa.cubicasa_live)."""
+    run = cubicasa.picks().get("yolo_run")
+    return {"run": run, "members": list(cubicasa_live.members(run)), "available": cubicasa_live.available_runs(run)}
 
 
 @app.get("/api/drawings")
@@ -95,6 +108,8 @@ def drawings(source: str | None = None, q: str | None = None, only_questions: bo
 @app.get("/api/drawing")
 def drawing(id: str):
     d = _drawing(id)
+    if uploads.is_upload(d.id):
+        return _upload_detail(d)
     out_sheets = []
     for s in d.sheets:
         pages = sheets.pdf_pages(s.path) if s.kind == "pdf" else 1
@@ -142,6 +157,39 @@ def _suggest(qs: list[dict], limit: int = 40) -> list[dict]:
         out.append({"question": q["question"], "type": q["type"], "lang": _lang(q["question"])})
     out.sort(key=lambda q: (q["lang"] != "en", q["lang"]))
     return out[:limit]
+
+
+# ------------------------------------------------------------------ uploads
+
+@app.post("/api/upload")
+async def upload(request: Request):
+    """Raw image bytes in the body (PNG or JPEG) -> the drawing record of the stored plan, ready for /api/ask."""
+    if int(request.headers.get("content-length") or 0) > uploads.MAX_BYTES:
+        raise HTTPException(413, f"file is larger than {uploads.MAX_BYTES // (1024 * 1024)} MB")
+    data = await request.body()
+    try:
+        rel = await run_in_threadpool(uploads.save, data)  # image decode + PNG encode: off the event loop
+    except uploads.BadUpload as e:
+        raise HTTPException(400, f"cannot use this file: {e}") from None
+    return _upload_detail(uploads.drawing(rel))
+
+
+def _upload_detail(d: catalog.Drawing) -> dict:
+    s = d.sheets[0]
+    w, h = sheets.image_size("image", s.path)
+    det = _detector()
+    if det["available"]:
+        note = f"Counted by the YOLO11 plan detectors run on this image ({' + '.join(det['available'])})."
+    else:
+        note = ("No plan detector is installed on this server (ultralytics + weights in third_party/weights/), so counts come "
+                "from a vision model as estimates, or are refused.")
+    return {**d.summary(), "ask_path": d.ask_path, "files": d.files, "upload": True,
+            "sheets": [{"kind": "image", "path": s.path, "page": 0, "label": s.label, "src": f"/api/file?path={_q(s.path)}",
+                        "width": w, "height": h}],
+            "questions": [{"question": q, "type": "count", "lang": "en"} for q in uploads.SUGGESTED], "question_count": 0,
+            "credit": {"title": "Your upload", "credit": note, "licence": "", "url": ""},
+            "source_info": {"label": "Uploaded plan", "kind": "raster floor plan", "engine": "detection"},
+            "scene": None, "model": None, "model_note": None, "detector": det}
 
 
 # ------------------------------------------------------------------ sheets
@@ -386,4 +434,5 @@ def web_app():
 if WEB.is_dir():
     app.mount("/web", StaticFiles(directory=WEB), name="web")
 app.mount("/blueprint3d", StaticFiles(directory=REPO / "blueprint3d", html=True), name="viewer")
-app.mount("/junction-dataset/junction-dataset", StaticFiles(directory=DATASET), name="dataset")
+if DATASET.is_dir():  # the app also runs without the dataset, for uploaded plans only
+    app.mount("/junction-dataset/junction-dataset", StaticFiles(directory=DATASET), name="dataset")

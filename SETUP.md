@@ -88,6 +88,24 @@ Check the weights: the file should be about 208 MB. If it's a few KB, Google Dri
 
 `.venv/` and `third_party/` are gitignored. **Never commit them.** The model and its data are licensed CC BY-NC(-SA) 4.0: non-commercial use, with credit to CubiCasa and Kalervo et al. 2019.
 
+### 4e. Optional: count on your own plans with the trained YOLO detectors
+
+The app answers raster plans from boxes predicted offline for CubiCasa's val/test plans. To count on any other plan,
+including one you upload in the web app ("Upload a plan image", or drop the file on the sheet), install the detectors:
+
+```bash
+uv sync --extra detect                       # ultralytics + CPU torch (not needed for CI or the base app)
+modal token new                              # once, if this machine has no Modal login
+uv run modal volume get stoa-cubicasa runs/m13-1280/weights/best.pt third_party/weights/m13-1280.pt
+# the second model of the fused run, if you have it (it was trained on a laptop, not on Modal):
+#   copy its best.pt to third_party/weights/local-y11s-13c.pt
+```
+
+`stoa_qa/cubicasa_live.py` runs whichever of the two models is present (both → fused like the offline run; one →
+used alone, and the answer says the count is less certain). Boxes are cached in `eval_out/yolo/live/`; uploads are
+stored in `eval_out/uploads/` (both gitignored). `STOA_YOLO_WEIGHTS` points to another weights folder,
+`STOA_NO_LIVE_YOLO=1` turns live detection off. The app also starts without the dataset, for uploads only.
+
 ## 5. Launch the viewer
 
 ```bash

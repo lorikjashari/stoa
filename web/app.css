@@ -94,6 +94,11 @@ h1, h2, p, dl, dd, ol { margin: 0; padding: 0; }
 .demo button { flex: auto; border: 1px solid var(--ink); border-right-width: 0; background: var(--card); padding: 6px 0 5px; font: 500 10px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; }
 .demo button:last-child { border-right-width: 1px; }
 .demo button:hover { background: var(--hl); }
+.upload { display: grid; gap: 6px; }
+.upload .btn { text-align: center; cursor: pointer; }
+.upload .btn:focus-within { outline: 2px solid var(--ink); outline-offset: 2px; }
+.upload small { font: 11px/1.35 var(--sans); color: var(--ink-3); }
+.stage.drop { outline: 3px dashed var(--red); outline-offset: -10px; }
 .rows { flex: 1; overflow-y: auto; }
 .row { display: grid; grid-template-columns: 46px 1fr; gap: 11px; width: 100%; padding: 8px 14px 8px 11px; border: 0; border-left: 3px solid transparent;
   border-bottom: 1px solid var(--rule); background: transparent; text-align: left; align-items: center; }

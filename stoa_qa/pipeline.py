@@ -229,12 +229,15 @@ def presented(question: str, a: Answer) -> str:
 
 
 def _live_cubicasa_counts(d: Drawing) -> list[dict]:
-    """A plan without precomputed predictions: one Gemma call counts all 12 items, cached for later questions."""
+    """A plan without precomputed predictions and no detector to run here: one Gemma call counts all 12 items, cached.
+
+    cubicasa.answer already tries the YOLO detectors live (stoa_qa.cubicasa_live) before this is reached."""
     from . import cubicasa_gemini as cg
 
     cache = REPO / "eval_out/gemini" / llm.MODEL.replace("/", "__")
     cache.mkdir(parents=True, exist_ok=True)
-    r = cg.ask_featherless(llm.MODEL, llm.api_key(), d.ask_path, 1536, cache)
+    path = str(sheets.safe_path(d.ask_path)) if d.ask_path.startswith("uploads/") else d.ask_path  # DATASET / absolute = absolute
+    r = cg.ask_featherless(llm.MODEL, llm.api_key(), path, 1536, cache)
     u = r.get("usage") or {}
     if "error" in r or not u:
         return []

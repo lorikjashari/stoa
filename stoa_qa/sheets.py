@@ -28,7 +28,13 @@ def _cache_file(kind: str, key: str, ext: str) -> Path:
 
 
 def safe_path(rel: str) -> Path:
-    """Dataset-relative path -> absolute path, refusing anything outside the dataset."""
+    """Dataset-relative path -> absolute path, refusing anything outside the dataset.
+
+    'uploads/...' paths resolve inside the uploads folder instead (stoa_qa.uploads), with the same containment check."""
+    from . import uploads
+
+    if uploads.is_upload(rel):
+        return uploads.resolve(rel)
     p = (DATASET / rel).resolve()
     if not p.is_relative_to(DATASET.resolve()) or not p.is_file():
         raise FileNotFoundError(rel)

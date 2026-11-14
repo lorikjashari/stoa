@@ -425,7 +425,8 @@ function renderSuggest() {
   if (state.tab === "stoa" && !d.questions.length) state.tab = "free";
   $("#tab-stoa").classList.toggle("on", state.tab === "stoa"); $("#tab-free").classList.toggle("on", state.tab === "free");
   $("#tab-stoa").disabled = !d.questions.length;
-  $("#q-count").textContent = d.question_count ? `(${d.question_count})` : "(none)";
+  $("#tab-stoa").firstChild.textContent = d.upload ? "Counts " : "Stoa's questions ";  // an upload has no dataset questions
+  $("#q-count").textContent = d.upload ? "" : d.question_count ? `(${d.question_count})` : "(none)";
   const qs = state.tab === "stoa" ? d.questions : (FREEFORM[d.source] || FREEFORM.default).map((q) => ({ question: q, lang: "any" }));
   $("#suggest").replaceChildren(...qs.map((q) => h("li", {},
     h("button", { title: q.question, onclick: () => ask(q.question) }, h("code", {}, q.lang), h("span", {}, q.question)))));
@@ -852,8 +853,34 @@ function initVoice() {
   mic.onclick = () => { if (live) rec.stop(); else { live = true; mic.classList.add("live"); rec.start(); } };
 }
 
+// ------------------------------------------------------------------ upload a plan of your own
+async function uploadPlan(file) {
+  const msg = $("#up-msg");
+  if (!file) return;
+  if (!/^image\/(png|jpeg)$/.test(file.type)) { msg.textContent = "Use a PNG or JPEG image of a floor plan."; return; }
+  msg.textContent = `Uploading ${file.name}…`;
+  let d;
+  try {
+    const r = await fetch("/api/upload", { method: "POST", headers: { "content-type": file.type }, body: file });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || `${r.status}`);
+    d = await r.json();
+  } catch (e) { msg.textContent = `Upload failed: ${e.message}`; return; }
+  const det = d.detector || {};
+  msg.textContent = det.available?.length ? `${file.name} · detectors: ${det.available.join(" + ")}`
+    : `${file.name} · no detector installed on this server: counts fall back to a vision model or are refused`;
+  await openDrawing(d.id);
+}
+
+function initUpload() {
+  $("#up-file").addEventListener("change", (e) => { uploadPlan(e.target.files[0]); e.target.value = ""; });
+  const root = stage.root, files = (e) => [...(e.dataTransfer?.types || [])].includes("Files");
+  root.addEventListener("dragover", (e) => { if (!files(e)) return; e.preventDefault(); root.classList.add("drop"); });
+  root.addEventListener("dragleave", () => root.classList.remove("drop"));
+  root.addEventListener("drop", (e) => { if (!files(e)) return; e.preventDefault(); root.classList.remove("drop"); uploadPlan(e.dataTransfer.files[0]); });
+}
+
 function init() {
-  stage.init(); initVoice(); renderMeter(); renderThread();
+  stage.init(); initVoice(); initUpload(); renderMeter(); renderThread();
   let timer;
   $("#search").addEventListener("input", (e) => { clearTimeout(timer); timer = setTimeout(() => { state.q = e.target.value.trim(); loadList(); }, 220); });
   $("#only-q").addEventListener("change", (e) => { state.onlyQ = e.target.checked; loadList(); });

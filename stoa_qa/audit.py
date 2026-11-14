@@ -162,7 +162,7 @@ def second_reader(path: str, a: Answer) -> list[Check]:
     v = _num(a.value)
     if v is None or not a.intent:
         return []
-    preds = cubicasa.predictions(Path(path).stem)
+    preds = cubicasa.predictions_for(path)
     votes = {s: int(p["counts"][a.intent]) for s, p in preds.items() if a.intent in p.get("counts", {})}
     if len(votes) < 2:
         return [Check("second reader", "warn", "Only one reader has counted this plan, so nothing confirms it.", False)]

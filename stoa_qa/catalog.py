@@ -122,6 +122,8 @@ def _sheet_label(name: str) -> str:
 @lru_cache(maxsize=1)
 def question_index() -> dict[str, list[dict]]:
     by_path: dict[str, list[dict]] = collections.defaultdict(list)
+    if not (DATASET / "questions.jsonl").is_file():  # no dataset here: the app still answers uploaded plans
+        return by_path
     with open(DATASET / "questions.jsonl", encoding="utf-8") as fp:
         for line in fp:
             r = json.loads(line)
@@ -134,7 +136,7 @@ def catalog() -> dict[str, Drawing]:
     qidx = question_index()
     groups: dict[tuple[str, str], list[str]] = collections.defaultdict(list)
     data = DATASET / "data"
-    for source in sorted(os.listdir(data)):
+    for source in sorted(os.listdir(data)) if data.is_dir() else []:
         if not (data / source).is_dir():
             continue
         for d, _, files in os.walk(data / source):
@@ -258,7 +260,7 @@ def credits() -> dict[str, dict]:
     """file name -> {title, licence, credit, url} from data/<source>/LICENSE.md tables; '<source>/*' = folder default."""
     out: dict[str, dict] = {}
     data = DATASET / "data"
-    for source in os.listdir(data):
+    for source in os.listdir(data) if data.is_dir() else []:
         lic = data / source / "LICENSE.md"
         if not lic.is_file():
             continue

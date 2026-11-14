@@ -92,8 +92,26 @@ def _seg_index() -> dict[str, dict]:
     return out
 
 
-def predictions(stem: str) -> dict[str, dict]:
-    """All available source predictions for one plan: {source: {"counts": {...}, ...}}."""
+def image_of(path: str) -> Path | None:
+    """The plan image file behind a dataset- or upload-relative path (None when it is not on disk)."""
+    from . import sheets
+
+    try:
+        return sheets.safe_path(path)
+    except (FileNotFoundError, OSError, ValueError):
+        return None
+
+
+def predictions_for(path: str) -> dict[str, dict]:
+    """predictions() for a plan given by path, so a plan without precomputed boxes can be detected live."""
+    return predictions(Path(path).stem, image_of(path))
+
+
+def predictions(stem: str, image: Path | None = None) -> dict[str, dict]:
+    """All available source predictions for one plan: {source: {"counts": {...}, ...}}.
+
+    Without precomputed detector boxes for `stem`, the picked YOLO run is executed on `image` when its weights and
+    ultralytics are installed (stoa_qa.cubicasa_live); those boxes carry a "live" entry saying which models ran."""
     out = {}
     net = _json(REPO / "third_party/cubicasa_preds" / f"{stem}.json")
     if net and "counts" in net:
@@ -114,6 +132,14 @@ def predictions(stem: str) -> dict[str, dict]:
                 qs = TILE_QUESTIONS if src == "tiles" else YOLO_Q
                 counts = {q: len(_yolo_selected(boxes, q, cfg, pre)) for q in qs}
                 out[src] = {"counts": counts, "boxes": boxes}
+    if "yolo" not in out and image is not None and cfg.get("yolo_run"):
+        from . import cubicasa_live
+
+        live = cubicasa_live.boxes(cfg["yolo_run"], image)
+        if live is not None:  # same format and thresholds as the precomputed boxes of the picked run
+            counts = {q: len(_yolo_selected(live["boxes"], q, cfg)) for q in YOLO_Q}
+            out["yolo"] = {"counts": counts, "boxes": live["boxes"],
+                           "live": {k: live[k] for k in ("runs", "fused", "complete", "hash")}}
     return out
 
 
@@ -153,12 +179,21 @@ def _evidence(src: str, key: str, pred: dict, cfg: dict) -> list[Evidence]:
     return [Evidence("model", src, f"{src} counted {pred['counts'].get(key)} (no geometry)")]
 
 
+def _live_note(live: dict, cfg: dict) -> str:
+    runs = " + ".join(live["runs"])
+    how = "fused" if live["fused"] else "single model"
+    note = f"Detected on this image just now by YOLO11 ({runs}, {how}), with the thresholds chosen on CubiCasa's val split"
+    if not live["complete"]:
+        note += f" for {cfg.get('yolo_run')}; only part of that run is installed here, so the count is less certain"
+    return note + "."
+
+
 def answer(path: str, question: str) -> Answer:
     stem = Path(path).stem
     key = question_key(question)
     if key is None:
         return Answer(None, None, "unknown", 0.0, "cubicasa: question not understood", source_file=path)
-    preds = predictions(stem)
+    preds = predictions_for(path)
     cfg = picks()
     order = [cfg["picks"].get(key)] + ["tiles", "yolo", "gemini", "gemma", "network"]
     src = next((s for s in order if s and s in preds and key in preds[s]["counts"]), None)
@@ -173,6 +208,9 @@ def answer(path: str, question: str) -> Answer:
     method = f"{reader} counted {value} {NOUNS[key][value != 1]}"
     if others:
         method += f". Other readers: {others}. " + ("All agree." if agree == len(votes) - 1 else f"{agree} of {len(votes) - 1} agree{'s' if agree == 1 else ''}." if agree else "None agrees, so check the marks.")
+    live = (preds.get("yolo") or {}).get("live")
+    if live and src == "yolo":
+        method = f"{method.rstrip('.')}. {_live_note(live, cfg)}"
     ev = _evidence(src, key, preds[src], cfg)
     if not any(e.coords for e in ev):
         for helper in ("tiles", "yolo", "network"):

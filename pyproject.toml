@@ -23,9 +23,15 @@ raster = [
   "scipy>=1.13",
   "scikit-image>=0.24",
 ]
+# The trained YOLO11 plan detectors run live on new / uploaded plans (stoa_qa/cubicasa_live.py): uv sync --extra detect
+# Weights are not in git: third_party/weights/<run>.pt (see that module's docstring).
+detect = [
+  "ultralytics>=8.3",
+]
 
 [tool.uv.sources]
 torch = { index = "pytorch-cpu" }
+torchvision = { index = "pytorch-cpu" }
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
