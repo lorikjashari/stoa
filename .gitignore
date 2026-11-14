@@ -21,3 +21,4 @@ Thumbs.db
 # Analysis outputs — previews built from licensed dataset drawings; keep scripts only
 _analysis/*.jpg
 _analysis/*.png
+eval_out/
