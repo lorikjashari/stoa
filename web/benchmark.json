@@ -10,11 +10,11 @@
    "label": "BIM models · 3,062 questions, 9 languages"
   },
   {
-   "value": "65.9%",
+   "value": "84.2%",
    "label": "raster plans, held-out test (hybrid)"
   },
   {
-   "value": "76.7%",
+   "value": "89.1%",
    "label": "projected on all 126k scored questions*"
   }
  ],
@@ -43,19 +43,25 @@
     {
      "label": "Plumbline hybrid",
      "sub": "3,398 questions · best source per question, chosen on the validation split",
-     "pct": 65.9211300765156,
+     "pct": 84.19658622719247,
      "kind": "ev"
+    },
+    {
+     "label": "Detectors alone",
+     "sub": "3,398 questions · two YOLO11 detectors (Modal 1280 px, 60 epochs + laptop 1024 px) fused, trained on CubiCasa's train split",
+     "pct": 84.19658622719247,
+     "kind": "base"
+    },
+    {
+     "label": "CubiCasa5K network + rules",
+     "sub": "3,398 questions · pretrained 2019 model · CPU · our post-processing (class-map counts, wet rooms, floor plates)",
+     "pct": 63.44908769864626,
+     "kind": "base"
     },
     {
      "label": "Gemma 4 31B alone",
      "sub": "3,398 questions · 550 + 116 tokens per plan · $0.004 per 1,000 questions",
      "pct": 63.44908769864626,
-     "kind": "base"
-    },
-    {
-     "label": "CubiCasa5K network alone",
-     "sub": "2,842 questions · pretrained 2019 model · CPU · no showers, no floor count",
-     "pct": 50.211118930330755,
      "kind": "base"
     },
     {
@@ -80,7 +86,7 @@
   }
  ],
  "notes": [
-  "* Projection: measured CAD and BIM results plus the held-out raster rate applied to all 85,514 raster questions. Raster plans are two thirds of the question set, so that is where the next gains are (a detector trained on CubiCasa labels is prepared).",
+  "* Projection: measured CAD and BIM results plus the held-out raster rate applied to all 85,514 raster questions. Raster plans are two thirds of the question set, so that is where the next gains are (a detector trained on CubiCasa's train-split labels now answers them).",
   "Answers on CAD and BIM drawings use no LLM at all. Free-form questions use Gemma 4 only to plan a query (about 1,200 tokens, $0.00015); the numbers are still computed from the drawing."
  ]
 }

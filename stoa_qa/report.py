@@ -15,7 +15,7 @@ import re
 from pathlib import Path
 
 from .cubicasa_gemini import QUESTIONS, load_truth, split_members
-from .cubicasa_hybrid import acc, load_counts_dir
+from .cubicasa_hybrid import TILE_QUESTIONS, acc, load_detector, load_sources
 
 REPO = Path(__file__).resolve().parent.parent
 OUT = REPO / "web" / "benchmark.json"
@@ -60,12 +60,12 @@ def main() -> None:
     # raster plans, held-out test split only
     truth = load_truth()
     test = sorted(p for p in split_members("test") if p in truth)
-    sources = {"network": {}, "gemma": load_counts_dir(REPO / "eval_out/gemini/google__gemma-4-31B-it"),
-               "gemini": load_counts_dir(REPO / "eval_out/gemini/gemini-3.5-flash")}
-    for f in (REPO / "third_party/cubicasa_preds").glob("*.json"):
-        r = json.loads(f.read_text())
-        if "counts" in r:
-            sources["network"][r["path"]] = r["counts"]
+    picks_file = Path(__file__).with_name("cubicasa_picks.json")
+    picks = json.loads(picks_file.read_text()) if picks_file.exists() else {}
+    sources, _, _ = load_sources(picks.get("yolo_run"), picks.get("yolo_thresholds") or {}, picks.get("yolo_iou") or {})
+    tiles, _, _ = load_detector(picks.get("tile_run"), TILE_QUESTIONS, picks.get("tile_thresholds") or {}, picks.get("tile_iou") or {})
+    if tiles is not None:
+        sources["tiles"] = tiles
 
     def overall(preds: dict) -> tuple[float, int, int]:
         ok = n = 0
@@ -74,20 +74,21 @@ def main() -> None:
             ok, n = ok + a, n + b
         return (100 * ok / n if n else 0.0), n, sum(p in preds for p in test)
 
-    picks_file = Path(__file__).with_name("cubicasa_picks.json")
     raster_rows = []
     hybrid_pct = None
-    if picks_file.exists():
-        picks = json.loads(picks_file.read_text())
+    if picks.get("picks"):
         hybrid = {p: {k: sources[s][p][k] for k, s in picks["picks"].items() if p in sources.get(s, {}) and k in sources[s][p]} for p in test}
         pct, n, _ = overall(hybrid)
         hybrid_pct = pct
         raster_rows.append({"label": "Plumbline hybrid", "sub": f"{n:,} questions · best source per question, chosen on the validation split", "pct": pct, "kind": "ev"})
     g_in, g_out, g_cost, _ = _avg_tokens(REPO / "eval_out/gemini/google__gemma-4-31B-it")
     labels = {"gemma": ("Gemma 4 31B alone", f"{g_in:.0f} + {g_out:.0f} tokens per plan · ${1000 * g_cost / 24:.3f} per 1,000 questions"),
-              "network": ("CubiCasa5K network alone", "pretrained 2019 model · CPU · no showers, no floor count"),
-              "gemini": ("Gemini 3.5 Flash alone", "")}
-    for s in ("gemma", "network", "gemini"):
+              "network": ("CubiCasa5K network + rules", "pretrained 2019 model · CPU · our post-processing (class-map counts, wet rooms, floor plates)"),
+              "gemini": ("Gemini 3.5 Flash alone", ""),
+              "yolo": ("Detector alone", "YOLO11s trained on CubiCasa's train-split annotations · one box per counted item")}
+    for s in ("yolo", "gemma", "network", "gemini"):
+        if s not in sources:
+            continue
         pct, n, plans = overall(sources[s])
         if not n:
             continue
@@ -121,7 +122,7 @@ def main() -> None:
                      "Raster plans are two thirds of the question set, so that is where the next gains are (a detector trained on CubiCasa labels is prepared).")
     notes.append("Answers on CAD and BIM drawings use no LLM at all. Free-form questions use Gemma 4 only to plan a query (about 1,200 tokens, $0.00015); the numbers are still computed from the drawing.")
 
-    OUT.write_text(json.dumps({"generated": datetime.date.today().isoformat(), "kpis": kpis, "groups": groups, "notes": notes}, indent=1, ensure_ascii=False) + "\n")
+    OUT.write_text(encoding="utf-8", data=json.dumps({"generated": datetime.date.today().isoformat(), "kpis": kpis, "groups": groups, "notes": notes}, indent=1, ensure_ascii=False) + "\n")
     print(json.dumps({"kpis": kpis, "groups": [(g["title"], [(r["label"], round(r["pct"], 2)) for r in g["rows"]]) for g in groups]}, indent=1, ensure_ascii=False))
     print(f"-> {OUT}")
 
