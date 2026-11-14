@@ -107,6 +107,12 @@ def main() -> None:
         print(f"{src:16} {ok}/{n} = {ok / n:.2%}" if n else src)
     if tot_n:
         print(f"{'TOTAL scored':16} {tot_ok}/{tot_n} = {tot_ok / tot_n:.2%}   ({len(rows)} questions in {dt:.0f}s, {1000 * dt / max(1, len(rows)):.1f} ms/q)")
+    with open(out / "summary.json", "w", encoding="utf-8") as fp:
+        json.dump({"source": args.source, "cubicasa_split": args.cubicasa_split, "questions": len(rows), "scored": tot_n, "correct": tot_ok,
+                   "accuracy": round(tot_ok / tot_n, 6) if tot_n else None, "seconds": round(dt, 1),
+                   "ms_per_question": round(1000 * dt / max(1, len(rows)), 2),
+                   "by_intent": [{"source": k[0], "type": k[1], "intent": k[2], "correct": v[0], "scored": v[1]} for k, v in sorted(stats.items())]},
+                  fp, indent=1)
     with open(out / "failures.json", "w", encoding="utf-8") as fp:
         json.dump({" | ".join(k): v[:50] for k, v in fails.items()}, fp, ensure_ascii=False, indent=1)
     print(f"predictions -> {out}/predictions.jsonl, failures -> {out}/failures.json")

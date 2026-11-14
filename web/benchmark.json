@@ -1,0 +1,86 @@
+{
+ "generated": "2026-11-14",
+ "kpis": [
+  {
+   "value": "99.49%",
+   "label": "CAD floor plans · 37,584 questions, 4 languages"
+  },
+  {
+   "value": "99.90%",
+   "label": "BIM models · 3,062 questions, 9 languages"
+  },
+  {
+   "value": "65.9%",
+   "label": "raster plans, held-out test (hybrid)"
+  },
+  {
+   "value": "76.7%",
+   "label": "projected on all 126k scored questions*"
+  }
+ ],
+ "groups": [
+  {
+   "title": "Computed from geometry — the full question set",
+   "rows": [
+    {
+     "label": "Swiss dwellings · CAD (DXF)",
+     "sub": "37,584 questions · EN DE FR IT · 8.36 ms each · 0 LLM tokens",
+     "pct": 99.4891,
+     "kind": ""
+    },
+    {
+     "label": "IFC models · BIM",
+     "sub": "3,062 questions · 9 languages · 110.21 ms each · 0 LLM tokens",
+     "pct": 99.902,
+     "kind": ""
+    }
+   ],
+   "note": "Counts must be exact; areas, lengths and volumes within 2% (Stoa's scoring). No model is involved in these answers."
+  },
+  {
+   "title": "Raster plans — CubiCasa5K held-out test split (387 plans)",
+   "rows": [
+    {
+     "label": "Plumbline hybrid",
+     "sub": "3,398 questions · best source per question, chosen on the validation split",
+     "pct": 65.9211300765156,
+     "kind": "ev"
+    },
+    {
+     "label": "Gemma 4 31B alone",
+     "sub": "3,398 questions · 550 + 116 tokens per plan · $0.004 per 1,000 questions",
+     "pct": 63.44908769864626,
+     "kind": "base"
+    },
+    {
+     "label": "CubiCasa5K network alone",
+     "sub": "2,842 questions · pretrained 2019 model · CPU · no showers, no floor count",
+     "pct": 50.211118930330755,
+     "kind": "base"
+    },
+    {
+     "label": "Gemini 3.5 Flash alone",
+     "sub": "223 questions · only 25 plans (free-tier quota ran out) · 1358 + 2479 tokens per plan",
+     "pct": 83.40807174887892,
+     "kind": "base"
+    }
+   ],
+   "note": "Scored only on plans the pretrained network never trained on. When two independent sources agree the answer is right far more often, so agreement is shown as the confidence of each answer."
+  },
+  {
+   "title": "Real drawing sets — schedules on PDF sheets (Opening Design)",
+   "rows": [
+    {
+     "label": "Schedule row counts",
+     "sub": "39 count questions · Gemma picks the rows, we count them and highlight each one",
+     "pct": 51.282051282051285,
+     "kind": "ev"
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "* Projection: measured CAD and BIM results plus the held-out raster rate applied to all 85,514 raster questions. Raster plans are two thirds of the question set, so that is where the next gains are (a detector trained on CubiCasa labels is prepared).",
+  "Answers on CAD and BIM drawings use no LLM at all. Free-form questions use Gemma 4 only to plan a query (about 1,200 tokens, $0.00015); the numbers are still computed from the drawing."
+ ]
+}

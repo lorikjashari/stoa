@@ -1,0 +1,10 @@
+# Fonts
+
+Self-hosted latin subsets, downloaded from Google Fonts. All three families are licensed under the
+SIL Open Font License 1.1 (https://openfontlicense.org/open-font-license-official-text/).
+
+| Family | Copyright |
+| --- | --- |
+| Big Shoulders Display | Copyright 2019 The Big Shoulders Project Authors (https://github.com/xotypeco/big_shoulders) |
+| IBM Plex Sans | Copyright © 2017 IBM Corp. with Reserved Font Name "Plex" |
+| IBM Plex Mono | Copyright © 2017 IBM Corp. with Reserved Font Name "Plex" |

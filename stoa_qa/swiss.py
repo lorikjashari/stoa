@@ -261,3 +261,93 @@ def answer(path: str, question: str) -> Answer:
                            for i, f in enumerate(items)], src)
 
     return Answer(None, None, "unknown", 0.0, "swiss: question not understood", source_file=src)
+
+
+# ---------------------------------------------------------------- fact tables (for the query planner)
+
+def _long_side(poly: Polygon) -> float:
+    xs = list(poly.minimum_rotated_rectangle.exterior.coords)
+    return max(math.dist(xs[0], xs[1]), math.dist(xs[1], xs[2]))
+
+
+def fixture_type(f: dict) -> str:
+    return next((k for k, rule in FIXTURE_RULES.items() if rule(f)), "other")
+
+
+@lru_cache(maxsize=128)
+def facts(stem: str) -> dict:
+    """Queryable tables for one floor. Every row keeps the Evidence that locates it on the drawing."""
+    fl = load_floor(stem)
+    apt_of_unit = {h: next((l for l, p in fl.apt_tags if u.contains(Point(p))), None) for h, u in fl.units}
+
+    def unit_of(pt) -> str | None:
+        return next((apt_of_unit[h] for h, u in fl.units if u.contains(Point(pt))), None)
+
+    def room_of(pt) -> Room | None:
+        c = [r for r in fl.numbered if r.poly.contains(Point(pt))]
+        return min(c, key=lambda r: r.gross) if c else None
+
+    fixtures = []
+    per_room: dict[str, dict[str, int]] = {}
+    for f in fl.fixtures:
+        t = fixture_type(f)
+        if t == "other":
+            continue
+        c = f["poly"].centroid
+        rm = room_of((c.x, c.y))
+        if rm is not None:
+            per_room.setdefault(rm.handle, {}).setdefault(t, 0)
+            per_room[rm.handle][t] += 1
+        fixtures.append({"id": f"fixture:{f['handle']}", "type": t[:-1] if t.endswith("s") else t,
+                         "room": rm.number if rm else None, "room_label": rm.label if rm else None,
+                         "_ev": Evidence("polygon", f["handle"], t[:-1], None, _coords(f["poly"]), f"fixture:{f['handle']}")})
+
+    rooms = []
+    for r in fl.numbered:
+        fx = per_room.get(r.handle, {})
+        rooms.append({"number": r.number, "label": r.label or "(unlabelled)", "area_m2": round(r.area, 2),
+                      "apartment": unit_of(r.anchor), "outdoor": r.outdoor,
+                      "toilets": fx.get("toilets", 0), "washbasins": fx.get("basins", 0),
+                      "bathtubs": fx.get("bathtubs", 0), "showers": fx.get("showers", 0),
+                      "_ev": Evidence("polygon", r.handle, f"{r.number} {r.label or ''}".strip(), round(r.area, 2),
+                                      _coords(r.poly), f"room:{r.number or r.handle}")})
+
+    apartments = []
+    for h, u in fl.units:
+        letter = apt_of_unit[h]
+        if letter is None:
+            continue
+        rs = [r for r in fl.numbered if u.contains(Point(r.anchor))]
+        indoor = [r for r in rs if r.indoor_net and (r.label or "").lower() not in STAIRWELL]
+        apartments.append({"apartment": letter, "area_m2": round(sum(r.area for r in indoor), 2), "rooms": len(indoor),
+                           "outdoor_area_m2": round(sum(r.area for r in rs if r.outdoor), 2),
+                           "_ev": Evidence("polygon", h, f"apartment {letter}", None, _coords(u), f"unit:{h}")})
+
+    def openings(items, kind):
+        out = []
+        for i, (h, p) in enumerate(items):
+            c = p.centroid
+            out.append({"id": f"{kind}:{h}", "width_m": round(_long_side(p), 2), "apartment": unit_of((c.x, c.y)),
+                        "_ev": Evidence("polygon", h, f"{kind} {i + 1}", round(_long_side(p), 2), _coords(p), f"{kind}:{h}")})
+        return out
+
+    def fx(r):
+        have = [f"{r[k]} {k[:-1] if r[k] == 1 else k}" for k in ("toilets", "washbasins", "bathtubs", "showers") if r[k]]
+        return f" · {', '.join(have)}" if have else ""
+
+    return {
+        "rooms": {"rows": rooms, "units": {"area_m2": "m2"},
+                  "show": lambda r: f"{r['number']} {r['label']} — {r['area_m2']:.2f} m²" + (f" · apt {r['apartment']}" if r["apartment"] else "") + fx(r),
+                  "doc": "numbered rooms: number, label (as printed), area_m2 (net), apartment (letter or null), "
+                         "outdoor (balcony/terrace/loggia), toilets/washbasins/bathtubs/showers (fixtures inside)"},
+        "apartments": {"rows": apartments, "units": {"area_m2": "m2", "outdoor_area_m2": "m2"},
+                       "show": lambda r: f"Apartment {r['apartment']} — {r['area_m2']:.2f} m² indoor · {r['rooms']} rooms"
+                                         + (f" · {r['outdoor_area_m2']:.2f} m² outdoor" if r["outdoor_area_m2"] else ""),
+                       "doc": "residential units: apartment (letter), area_m2 (indoor net), rooms (count), outdoor_area_m2"},
+        "doors": {"rows": openings(fl.doors, "door"), "units": {"width_m": "m"}, "doc": "doors: width_m, apartment",
+                  "show": lambda r: f"{r['_ev'].label} — {r['width_m']:.2f} m wide" + (f" · apt {r['apartment']}" if r["apartment"] else "")},
+        "windows": {"rows": openings(fl.windows, "window"), "units": {"width_m": "m"}, "doc": "windows: width_m, apartment",
+                    "show": lambda r: f"{r['_ev'].label} — {r['width_m']:.2f} m wide" + (f" · apt {r['apartment']}" if r["apartment"] else "")},
+        "fixtures": {"rows": fixtures, "units": {}, "doc": "sanitary fixtures: type (toilet|basin|bathtub|shower), room (number), room_label",
+                     "show": lambda r: f"{r['type']} in room {r['room'] or '?'}" + (f" ({r['room_label']})" if r["room_label"] else "")},
+    }

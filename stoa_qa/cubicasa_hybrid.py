@@ -94,6 +94,7 @@ def main() -> None:
 
     print(f"\n{'question':<11}" + "".join(f"{s:>16}" for s in sources) + f"{'HYBRID':>10}  picked (on val)")
     hybrid: dict[str, dict] = collections.defaultdict(dict)
+    picked: dict[str, str] = {}
     tot_ok = tot_n = 0
     for k in KEYS:
         row = f"{k:<11}"
@@ -105,6 +106,7 @@ def main() -> None:
             print(row + f"{'-':>10}")
             continue
         best = max(cands, key=lambda s: acc(sources[s], truth, split["val"], k)[0] / max(1, acc(sources[s], truth, split["val"], k)[1]))
+        picked[k] = best
         for p in split["test"]:
             if p in sources[best] and k in sources[best][p]:
                 hybrid[p][k] = sources[best][p][k]
@@ -113,6 +115,12 @@ def main() -> None:
         print(row + f"{ok / max(n, 1):>10.1%}  {best}")
     if tot_n:
         print(f"\nHYBRID on held-out test: {tot_ok}/{tot_n} = {tot_ok / tot_n:.1%}  (each question counted once; EN and FI share answers)")
+    if picked:
+        out = Path(__file__).with_name("cubicasa_picks.json")
+        out.write_text(json.dumps({"picks": picked, "selected_on": "CubiCasa5K val split", "yolo_run": a.yolo_run if "yolo" in sources else None,
+                                   "yolo_thresholds": thr if "yolo" in sources else {},
+                                   "test_accuracy": round(tot_ok / max(tot_n, 1), 4), "test_questions": tot_n}, indent=1) + "\n")
+        print(f"picks -> {out}")
 
     # agreement as confidence: hybrid answer confirmed by at least one other full-coverage source
     agree = collections.Counter()

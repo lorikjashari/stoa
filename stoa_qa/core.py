@@ -43,6 +43,14 @@ class Answer:
         return asdict(self)
 
 
+UNIT_TEXT = {"m2": "m²", "m3": "m³", "m": "m", "count": "", "ft2": "ft²"}
+
+
+def fmt_value(value, unit: str | None = None) -> str:
+    v = f"{value:,.2f}".rstrip("0").rstrip(".") if isinstance(value, float) else str(value)
+    return f"{v} {UNIT_TEXT.get(unit or '', unit or '')}".strip()
+
+
 UNANSWERED = Answer(value=None, intent="unknown", confidence=0.0, method="no solver matched")
 
 

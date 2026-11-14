@@ -1,4 +1,4 @@
-"""GPU half of the CubiCasa detector: train YOLO on the Volume built by cubicasa_detector.py::prep, then predict.
+"""GPU half of the CubiCasa detector: train YOLO on the Volume built by cubicasa_detector.py (extract + labels), then predict.
 
 Modal only runs GPU functions once the account has a payment method.
 
@@ -17,7 +17,7 @@ REPO = Path(__file__).resolve().parent.parent
 VOL = "/vol"
 DATA = f"{VOL}/yolo"
 RUNS = f"{VOL}/runs"
-CLASSES = ["door", "window", "toilet", "sink", "shower", "bathtub"]  # same order as cubicasa_detector.py
+CLASSES = ["door", "window", "toilet", "sink", "shower", "bathtub", "floor"]  # same order as stoa_qa/cubicasa_rules.py
 
 vol = modal.Volume.from_name("stoa-cubicasa", create_if_missing=True)
 app = modal.App("stoa-cubicasa-detector")

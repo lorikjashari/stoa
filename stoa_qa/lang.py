@@ -22,7 +22,7 @@ OBJECTS: dict[str, list[str]] = {
     "light": ["light fixture", "lighting", "luminaire", "iluminat", "leucht", "verlicht", "armatur", "lys"],
 }
 
-MODEL_WORDS = ["model", "modell", "modellen", "modelo", "modello", "mudel", "modelu", "modelul"]
+MODEL_RE = re.compile(r"\b(?:model|mudel)\w*", re.I)  # model, Modell, modellen, modelo, modello, modelu, modelul, mudelis
 
 
 def stem_hit(text: str, stems: list[str]) -> bool:
@@ -46,8 +46,7 @@ def quantity_of(text: str) -> str:
 
 
 def is_model_scope(text: str) -> bool:
-    t = text.lower()
-    return any(re.search(r"\b" + w + r"\b", t) for w in MODEL_WORDS)
+    return bool(MODEL_RE.search(text))
 
 
 QUOTES = re.compile(r"«([^»]+)»|„([^“”]+)[“”]|\"([^\"]+)\"")

@@ -12,7 +12,8 @@ const KIND_COLORS = {
   bedroom: 0x8fb8de, living: 0xe8c48a, kitchen: 0xe59a7a, bath: 0x86d0c7, corridor: 0xcfcac0,
   storage: 0xb8aed0, outdoor: 0xa8cf8f, stair: 0xa0a4ab, other: 0xd7d3cb,
 };
-const HL = new THREE.Color(0xffb020);
+const EMBED = new URLSearchParams(location.search).has("embed");  // shown inside the Plumbline app: paper theme, 3D pane only
+const HL = new THREE.Color(EMBED ? 0xffd21a : 0xffb020);
 const $ = (s) => document.querySelector(s);
 const hex = (c) => "#" + c.toString(16).padStart(6, "0");
 
@@ -23,6 +24,16 @@ let xray = false, isolate = false, storey = null;
 let webIfc = null;
 
 // ------------------------------------------------------------------ boot (called at the end of this module)
+if (EMBED) document.body.classList.add("embed");
+// stoa_qa answers carry IFC entity numbers; IFC scenes key their elements as "#<number>"
+const sceneId = (i) => (byId.has(i) ? i : byId.has("#" + i) ? "#" + i : null);
+const notifyHost = () => { if (window.parent !== window) window.parent.postMessage({ type: "plumbline:ready", name: $("#scene").value }, location.origin); };
+window.addEventListener("message", (e) => {
+  if (e.origin !== location.origin || e.data?.type !== "plumbline:highlight") return;
+  const ids = (e.data.ids || []).map(sceneId).filter((i) => i != null);
+  select(ids, ids.length ? `<b style="color:var(--text)">Evidence:</b> ${ids.length} element(s) highlighted.` : "");
+});
+
 async function boot() {
   init3D();
   const index = await (await fetch("scenes/index.json")).json();
@@ -34,6 +45,7 @@ async function boot() {
   $("#storey").onchange = () => { storey = +$("#storey").value; applyStorey(); };
   const fromHash = decodeURIComponent(location.hash.slice(1));
   await load(index.some((s) => s.name === fromHash) ? fromHash : index[0].name);
+  notifyHost();
 }
 
 async function load(name) {
@@ -119,7 +131,7 @@ function init3D() {
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(devicePixelRatio);
   scene3 = new THREE.Scene();
-  scene3.background = new THREE.Color(0x1a1f26);
+  scene3.background = new THREE.Color(EMBED ? 0xe7e2d5 : 0x1a1f26);
   camera = new THREE.PerspectiveCamera(45, 1, 0.1, 5000);
   controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
@@ -574,7 +586,7 @@ async function askApi(q) {
     const conf = d.confidence >= 0.9 ? "high" : d.confidence >= 0.6 ? "medium" : "low";
     const exp = d.expected == null ? "" :
       ` · Stoa's answer: <b>${d.expected}</b> ${String(d.expected) === String(d.value) ? "✓" : "✗"}`;
-    return { text: d.text, ids: d.ids.filter((i) => byId.has(i)),
+    return { text: d.text, ids: d.ids.map(sceneId).filter((i) => i != null),
              method: `${d.method} · confidence ${conf} · ${d.latency_ms} ms${exp}`, engine: "stoa_qa API" };
   } catch { return null; }
 }

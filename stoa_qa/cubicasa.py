@@ -37,6 +37,11 @@ KEY_PATTERNS = [
 LABELS = {"doors": "door", "windows": "window", "floors": "floor", "toilets": "toilet", "sinks": "sink",
           "baths": "shower/bathtub", "saunas": "sauna", "kitchens": "kitchen", "bedrooms": "bedroom",
           "wc_rooms": "WC room", "bathrooms": "bathroom", "balconies": "balcony"}
+NOUNS = {"doors": ("door", "doors"), "windows": ("window", "windows"), "floors": ("floor", "floors"), "toilets": ("toilet bowl", "toilet bowls"),
+         "sinks": ("sink", "sinks"), "baths": ("shower or bathtub", "showers and bathtubs"), "saunas": ("sauna", "saunas"),
+         "kitchens": ("kitchen", "kitchens"), "bedrooms": ("bedroom", "bedrooms"), "wc_rooms": ("separate WC room", "separate WC rooms"),
+         "bathrooms": ("bathroom", "bathrooms"), "balconies": ("balcony", "balconies")}
+READER = {"network": "the CubiCasa network", "gemma": "Gemma 4", "gemini": "Gemini 3.5 Flash", "yolo": "the detector"}
 YOLO_CLASSES = ["door", "window", "toilet", "sink", "shower", "bathtub"]
 YOLO_Q = {"doors": ["door"], "windows": ["window"], "toilets": ["toilet"], "sinks": ["sink"], "baths": ["shower", "bathtub"]}
 NET_ROOM = {"kitchens": "Kitchen", "bedrooms": "Bed Room", "bathrooms": "Bath", "balconies": "Outdoor"}
@@ -121,6 +126,18 @@ def answer(path: str, question: str) -> Answer:
     votes = [int(p["counts"][key]) for s, p in preds.items() if key in p["counts"]]
     agree = votes.count(value) - 1
     conf = 0.9 if agree >= 1 else 0.5
-    others = ", ".join(f"{s}={int(p['counts'][key])}" for s, p in preds.items() if s != src and key in p["counts"])
-    method = f"{LABELS[key]} count from {src}" + (f"; other sources: {others}" if others else "")
-    return Answer(value, "count", key, conf, method, _evidence(src, key, preds[src], cfg), path)
+    others = "; ".join(f"{READER[s]}: {int(p['counts'][key])}" for s, p in preds.items() if s != src and key in p["counts"])
+    reader = READER[src][0].upper() + READER[src][1:]
+    method = f"{reader} counted {value} {NOUNS[key][value != 1]}"
+    if others:
+        method += f". Other readers: {others}. " + ("All agree." if agree == len(votes) - 1 else f"{agree} of {len(votes) - 1} agree{'s' if agree == 1 else ''}." if agree else "None agrees, so check the marks.")
+    ev = _evidence(src, key, preds[src], cfg)
+    if not any(e.coords for e in ev):
+        for helper in ("yolo", "network"):
+            if helper in preds and helper != src:
+                shapes = [e for e in _evidence(helper, key, preds[helper], cfg) if e.coords]
+                if shapes:
+                    ev = shapes
+                    method += f" The marks on the sheet are {READER[helper]}'s {len(shapes)} detections."
+                    break
+    return Answer(value, "count", key, conf, method, ev, path)

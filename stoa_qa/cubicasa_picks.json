@@ -1,0 +1,21 @@
+{
+ "picks": {
+  "doors": "network",
+  "windows": "network",
+  "floors": "gemma",
+  "toilets": "network",
+  "sinks": "gemma",
+  "baths": "gemma",
+  "saunas": "network",
+  "kitchens": "network",
+  "bedrooms": "gemma",
+  "wc_rooms": "gemma",
+  "bathrooms": "gemma",
+  "balconies": "gemma"
+ },
+ "selected_on": "CubiCasa5K val split",
+ "yolo_run": null,
+ "yolo_thresholds": {},
+ "test_accuracy": 0.6592,
+ "test_questions": 3398
+}

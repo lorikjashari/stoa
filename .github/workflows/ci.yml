@@ -1,0 +1,16 @@
+name: ci
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    # Set the repository variable CI_RUNNER=craci to run on CRACI's GitHub-Actions-compatible runners
+    # (every build then records its dependencies as a CycloneDX SBOM). Falls back to GitHub-hosted runners.
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - name: Unit tests (synthetic drawings, no dataset or API keys needed)
+        run: uv run pytest -q

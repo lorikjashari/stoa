@@ -9,6 +9,7 @@ from .core import UNANSWERED, Answer, source_of
 SOLVERS = {
     "swiss_dwellings": swiss.answer,
     "ifc_models": ifc.answer,
+    "ifc_bench": ifc.answer,
     "cubicasa5k": cubicasa.answer,
 }
 

@@ -9,6 +9,50 @@ Two things we are building:
 1. **Blueprint Q&A (the core challenge).** Ask in any language ("How many doors are on this floor?", "Kuinka monta saunaa?", "What is the net area of the kitchen?"). You get the answer *and* the exact place on the drawing it came from, highlighted, so an engineer can check it in seconds.
 2. **Blueprint → 3D (our addition).** We turn 2D plans into an interactive 3D model of the same building. Clicking a room or wall in 3D highlights its source on the 2D sheet, and every answer is highlighted in both views. The 3D model is a second way to check an answer, not a separate feature.
 
+## Plumbline: the app ✅
+
+```bash
+uv sync
+uv run uvicorn stoa_qa.api:app --port 8765     # then open http://localhost:8765
+```
+
+The dataset goes in `junction-dataset/junction-dataset/` (see [SETUP.md](SETUP.md) step 2). Put `FEATHERLESS_API_KEY=...` in `.env` to enable free-form questions; without it the app still runs, geometry only.
+
+What you get:
+
+- **Every drawing in the dataset** (13,943) in one browser: search, filter by source, thumbnails, and the licence credit under each sheet.
+- **Ask in any language.** Each answer card shows the value, whether it matches Stoa's answer (when the question is from the dataset), the confidence, which engine answered, the response time, and the LLM tokens and cost (zero for most answers).
+- **Evidence on the original sheet.** Every counted door, room, fixture or schedule row is outlined and numbered where it is on the drawing. Each one also gets a thumbnail, and ← → steps through them one at a time.
+- **IFC answers light up the real elements** on the storey plan (matched by IFC GlobalId) and in the linked 3D model.
+- **Free-form questions** ("Which room is the largest?", "How many windows per storey?"): Gemma 4 writes one query, shown on the card, and the engine computes the result from the drawing.
+- **A benchmark view** with the measured numbers below.
+
+How a question is answered, cheapest trustworthy engine first (`stoa_qa/pipeline.py`):
+
+| Step | Used for | LLM use | Evidence shown |
+| --- | --- | --- | --- |
+| 1. Geometry / BIM | dataset-style questions on CAD and IFC drawings | none | polygons on the sheet, IFC elements |
+| 1. Detection hybrid | counts on raster plans | none at question time for evaluated plans (network and Gemma counts are precomputed); one Gemma call for a new plan | the network's detected shapes |
+| 2. Query planner | free-form questions on CAD and IFC | Gemma 4 plans one query: about 1,200 tokens, $0.00015 | the rows the query returned |
+| 3. Sheet text | PDF sheets with real text, e.g. schedules | Gemma picks the rows; the count is done by us | each picked row, highlighted |
+| 4. Vision | scans and anything without structure | Gemma reads the image | the model's own boxes, flagged low confidence |
+
+Measured results (see the Benchmark button in the app, built by `python -m stoa_qa.report`):
+
+| What | Questions | Accuracy |
+| --- | --- | --- |
+| Swiss CAD floor plans, 4 languages | 37,584 | **99.49%** |
+| IFC models, 9 languages | 3,062 | **99.90%** |
+| Raster plans, CubiCasa5K held-out test split: hybrid | 3,398 | **65.9%** (network alone 50.2%, Gemma 4 alone 63.4%) |
+| Raster plans when two independent sources agree (34% of answers) | | **86.9%** — this is what the confidence badge reports |
+| Door and finish schedules on real PDF sheets: row counts (first version) | 39 | 51.3% (20 of 39). Misses are mostly questions that need a quantity column summed rather than rows counted |
+
+Gemini 3.5 Flash alone scored 83.4% on raster plans, but on only 25 plans before the free-tier quota ran out, so it is not part of the hybrid yet.
+
+Tests: `uv run pytest` runs 26 tests on synthetic drawings (no dataset or API key needed); `.github/workflows/ci.yml` runs them on every push.
+
+Deploy with a public URL (CPU only): `modal run modal_jobs/serve.py::load_data`, then `modal deploy modal_jobs/serve.py`.
+
 ## The problem
 
 Site engineers spend hours every day looking for information in dense drawing sets. General-purpose AI often gets technical drawings wrong: it miscounts symbols, misreads scales and invents dimensions. In construction an answer that only *sounds* right is useless. People need to see where it came from.
@@ -278,12 +322,12 @@ Checked against the actual hackerpacks and tech challenges on 2026-11-14. These 
 
 | Tech challenge (prize) | Its role in Make Blueprints Talk | Status |
 | --- | --- | --- |
-| **Gemini API** (€4k + GCP credits) | Vision fallback on raster sheets (returns boxes, which become evidence highlights) and the "frontier model only" baseline | API key working |
-| **Modal** ($2k + credits) | Fine-tune the CubiCasa detector on GPU, batch-index all drawings, host the demo API | CLI logged in; secret `stoa-keys` created |
-| **Gemma** (€1k, top 3) | Small fine-tuned model that turns a question into a solver call, for low inference cost | Planned |
-| **Cloudinary** ($500 per member) | Evidence crops and annotated overlays generated on the fly; sheet tiles | Planned |
-| **Aiven** (€1k) | Postgres + PostGIS store for the drawing graph (map-style queries: "doors inside room X") | Planned |
-| **CRACI** (LEGO + interview) | CI runs `stoa_qa.eval` on every push and blocks merges that lower accuracy | Planned |
+| **Gemma** (€1k, top 3) | Gemma 4 31B (via Featherless) plans queries for free-form questions, picks schedule rows on PDF sheets, counts on raster plans and reads scans. Numbers are always computed by us | **In the app** |
+| **Modal** ($2k + credits) | Ran the CubiCasa network on 769 plans in parallel (minutes instead of hours on a laptop); detector dataset and training jobs; deploy script for a public URL | Batch jobs done; training needs a payment method for GPU; deploy script ready |
+| **Gemini API** (€4k + GCP credits) | "Frontier model only" baseline and a boxes mode on raster plans (`stoa_qa/cubicasa_gemini.py`) | Baseline on 25 plans; waiting for hackathon credits |
+| **CRACI** (LEGO + interview) | CI runs the test suite on every push; set the repo variable `CI_RUNNER=craci` to run it on CRACI | Workflow ready |
+| **Cloudinary** ($500 per member) | Evidence crops and sheet thumbnails are generated by our own server for now | Not integrated |
+| **Aiven** (€1k) | Postgres + PostGIS store for the drawing graph (map-style queries: "doors inside room X") | Not integrated |
 | Nemotron VL, ElevenLabs | Optional: a second vision model for the agreement-based confidence check; voice questions on site | If time |
 
 Credits: Gemini (one form per team, 18+), Modal (code `VVX-2QX-8HW`, $100 per person), Anthropic ($20 per person), Aiven ($50), Cloudinary (survey form), CRACI (invite code in #craci), IronShard (`JUNCTION26`, dataset and model storage), Featherless (`JUNCTION26`, hosted Gemma).
@@ -306,12 +350,16 @@ The dataset comes with an official question set, so we measure ourselves on it f
 - [x] DXF path (swiss_dwellings): room polygons → counts/areas (99.49% all languages); extrusion → linked 3D viewer.
 - [x] Fixture symbol classification (WC, washbasin, bathtub, shower) on the DXF `FIXTURE` layer (99.5–100%).
 - [x] Multilingual questions without an LLM (`stoa_qa/lang.py`, 10 languages).
-- [ ] Raster path (cubicasa5k): door/window/room detection + Finnish OCR → counts (50.2% with the pretrained network so far).
-- [ ] Gemini vision baseline on cubicasa5k (the "frontier model only" comparison).
-- [ ] One answer API: viewer calls `stoa_qa` so every format shares the same answers and evidence.
-- [ ] LLM router (Gemma) for free-form questions; `ifc_bench` text answers.
-- [ ] UI: question → answer → 2D highlight; linked 3D highlight.
-- [ ] Uncertainty handling and "no answer" responses.
+- [x] Raster path (cubicasa5k), first version: pretrained network + Gemma 4 hybrid, 65.9% on held-out plans (network alone 50.2%).
+- [ ] Raster path, next: detector trained on CubiCasa annotations for doors, windows and fixtures (label extraction and training jobs are in `modal_jobs/`; training needs a GPU).
+- [x] Vision baselines on held-out plans: Gemma 4 on all 387 plans; Gemini 3.5 Flash on 25 (free-tier quota).
+- [x] One answer API (`/api/ask`): every format shares the same answers and evidence; the 3D viewer uses it too.
+- [x] Free-form questions: Gemma 4 plans a query over the drawing's fact tables (`stoa_qa/planner.py`); covers many `ifc_bench` questions.
+- [x] UI: question → answer → evidence on the original sheet → linked 3D highlight (`web/`).
+- [x] Uncertainty: confidence from source agreement, "I can't answer that" instead of a guess, vision answers flagged as estimates.
+- [x] Schedules on PDF sheets: rows selected by Gemma, counted and highlighted by us (`stoa_qa/docqa.py`).
+- [x] Unit tests on synthetic drawings and CI.
+- [ ] Public deployment (`modal_jobs/serve.py` is ready).
 - [ ] Two-minute live demo + accuracy slide against the baseline.
 
 ## Team roles
@@ -352,7 +400,7 @@ py -m http.server 8765                      # open http://localhost:8765/bluepri
 
 Raster plans (CubiCasa5K network) need a venv, PyTorch and the model weights: see SETUP.md step 4.
 
-The multilingual Q&A engine uses [uv](https://docs.astral.sh/uv/) (`uv sync`, then `uv run python -m stoa_qa.eval --source swiss_dwellings --limit 50`); see [Q&A engine](#qa-engine-stoa_qa-all-languages-). Secrets go in `.env` (gitignored): `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`.
+The app and the multilingual Q&A engine use [uv](https://docs.astral.sh/uv/): `uv sync`, then `uv run uvicorn stoa_qa.api:app --port 8765` (see [Plumbline: the app](#plumbline-the-app-)). To score the engine: `uv run python -m stoa_qa.eval --source swiss_dwellings --limit 50`. Secrets go in `.env` (gitignored): `FEATHERLESS_API_KEY` (Gemma), `GEMINI_API_KEY`.
 
 ## Useful links
 

@@ -43,6 +43,12 @@
   .ifc-only { display: none; } body.ifc .ifc-only { display: inline-block; }
   svg .hl { stroke: var(--accent) !important; stroke-width: .08 !important; fill: #ffb02099 !important; }
   svg .room.hl { fill: #ffb02055 !important; }
+  body.embed { --bg: #e7e2d5; --panel: #fbfaf6; --line: #15171b; --text: #15171b; --muted: #4b5059; --accent: #cf2a1e; --warn: #4b5059; }
+  body.embed header, body.embed footer, body.embed main > section:first-child { display: none; }
+  body.embed main { grid-template-columns: 1fr; height: 100%; min-height: 0; }
+  body.embed .pane { border-right: 0; }
+  body.embed button { border-radius: 0; font: 500 10.5px ui-monospace, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; }
+  body.embed .assume { background: #fbfaf6; border: 1px solid #15171b; border-radius: 0; }
   @media (max-width: 800px) { main { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; height: 900px; } footer { grid-template-columns: 1fr; height: auto; } }
 </style>
 <script type="importmap">
